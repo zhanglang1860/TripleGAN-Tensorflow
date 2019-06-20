@@ -36,6 +36,7 @@ class Data(VideosDataset):
         self.queue = DataQueue(name, queue_size)
         self.examples = None
         self.all_hdf5_data = all_hdf5_data
+
         self._start_data_thread()
 
     def get_frames_data(self, filename, num_frames_per_clip=16):
@@ -80,15 +81,54 @@ class Data(VideosDataset):
         data[:, :, :, 0] = mri
         return data
 
+    def put_less_data_in_queue_2_class(self,num_less_label_data):
+        each_class_data_num=num_less_label_data//self.num_classes
+        count_class_1 = 0
+        count_class_2 = 0
+        while True:
+            # print 'enter for...'*n
+            index = random.randint(0, len(self.train_ids) - 1)
+            mri, label = get_data(self.train_ids[index], self.all_hdf5_data)
+            if count_class_1 < each_class_data_num and int(label[0])==1:
+                count_class_1=count_class_1+1
+            elif count_class_2 < each_class_data_num and int(label[1])==1:
+                count_class_2 = count_class_2 + 1
+            else:
+                self.queue.put((mri, label))
+                self.records_in_queue = self.records_in_queue + 1
+
+
+
+    def put_less_data_in_queue_3_class(self,num_less_label_data):
+        each_class_data_num = num_less_label_data // self.num_classes
+        count_class_1 = 0
+        count_class_2 = 0
+        count_class_3 = 0
+        while True:
+            # print 'enter for...'*n
+            index = random.randint(0, len(self.train_ids) - 1)
+            mri, label = get_data(self.train_ids[index], self.all_hdf5_data)
+            if count_class_1 < each_class_data_num and int(label[0]) == 1:
+                count_class_1 = count_class_1 + 1
+            elif count_class_2 < each_class_data_num and int(label[1]) == 1:
+                count_class_2 = count_class_2 + 1
+            elif count_class_3 < each_class_data_num and int(label[2]) == 1:
+                count_class_3 = count_class_3 + 1
+            else:
+                self.queue.put((mri, label))
+                self.records_in_queue = self.records_in_queue + 1
+
     def extract_video_data(self):
         ''' Single tread to extract video and label information from the dataset
     '''
         # Generate one randome index and
+
         while True:
             # print 'enter for...'*n
             index = random.randint(0, len(self.train_ids) - 1)
             mri, label = get_data(self.train_ids[index], self.all_hdf5_data)
             self.queue.put((mri, label))
+
 
     def _start_data_thread(self):
         print("Start thread: %s data preparation ..." % self.name)
@@ -165,7 +205,7 @@ class DataQueue():
 
 
 class DataProvider(DataProvider):
-    def __init__(self, config, dataset_train, dataset_test, all_hdf5_data_train, all_hdf5_data_test, whichFoldData):
+    def __init__(self, config, dataset_train_unlabelled,dataset_train_labelled, dataset_test, all_hdf5_data_train, all_hdf5_data_test, whichFoldData):
         """
     Args:
       num_classes: the number of the classes
@@ -188,7 +228,7 @@ class DataProvider(DataProvider):
         self._sequence_length = 109
         self._crop_size = (91, 91)
 
-        img, label = get_data(dataset_train[0], all_hdf5_data_train)
+        img, label = get_data(dataset_train_unlabelled[0], all_hdf5_data_train)
 
         print("step3")
         config.h = img.shape[0]
@@ -203,10 +243,18 @@ class DataProvider(DataProvider):
         config.num_class = label.shape[0]
         self._num_classes = label.shape[0]
 
+        self.num_less_label_data = config.num_less_label_data
+
         if config.train:
-            self.train = Data('train', dataset_train,
+            self.train_unlabelled = Data('train_unlabelled', dataset_train_unlabelled,
                               'std', self._sequence_length,
                               self._crop_size, config.num_class, config.queue_size, all_hdf5_data_train)
+
+            self.train_labelled = Data('train_labelled', dataset_train_labelled,
+                                         'std', self._sequence_length,
+                                         self._crop_size, config.num_class, config.queue_size, all_hdf5_data_train)
+
+
         if config.test:
             self.test = Data('test', dataset_test,
                              'std', self._sequence_length,

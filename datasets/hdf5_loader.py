@@ -199,7 +199,7 @@ def all_ids(path,idFileName,cross_validation_number):
     return dataset_train, dataset_test
 
 
-def create_default_splits8020(path, hdf5FileName_train,hdf5FileName_test,idFileName_train,idFileName_test):
+def create_default_splits8020(path, hdf5FileName_train,hdf5FileName_test,idFileName_train,idFileName_test,num_less_label_data,class_num):
 
     file_train = os.path.join(path, hdf5FileName_train)
     log.info("Reading %s ...", file_train)
@@ -216,12 +216,41 @@ def create_default_splits8020(path, hdf5FileName_train,hdf5FileName_test,idFileN
     log.info("Reading Done: %s", file_test)
 
 
-
-
-
-    dataset_train = all_ids8020(path,idFileName_train)
+    dataset_train_unlabelled = all_ids8020(path,idFileName_train)
     dataset_test = all_ids8020(path, idFileName_test)
-    return dataset_train, dataset_test, all_hdf5_data_train,all_hdf5_data_test
+    if num_less_label_data==0:
+        dataset_train_labelled=dataset_train_unlabelled
+    else:
+        dataset_train_labelled = []
+        count_each_class=num_less_label_data//int(class_num)
+        count_class_0 = 0
+        count_class_1 = 0
+        count_class_2 = 0
+        if int(class_num) == 2:
+            for index in range(len(dataset_train_unlabelled)):
+                img, label = get_data(dataset_train_unlabelled[index], all_hdf5_data_train)
+                if count_class_0 < count_each_class and int(label[0]) == 1:
+                    count_class_0 = count_class_0 + 1
+                elif count_class_1 < count_each_class and int(label[1]) == 1:
+                    count_class_1 = count_class_1 + 1
+                else:
+                    dataset_train_labelled.append(dataset_train_unlabelled[index])
+        else:
+            for index in range(len(dataset_train_unlabelled)):
+                img, label = get_data(dataset_train_unlabelled[index], all_hdf5_data_train)
+                if count_class_0 < count_each_class and int(label[0]) == 1:
+                    count_class_0 = count_class_0 + 1
+                elif count_class_1 < count_each_class and int(label[1]) == 1:
+                    count_class_1 = count_class_1 + 1
+                elif count_class_2 < count_each_class and int(label[2]) == 1:
+                    count_class_2 = count_class_2 + 1
+                else:
+                    dataset_train_labelled.append(dataset_train_unlabelled[index])
+
+
+
+
+    return dataset_train_unlabelled, dataset_test, all_hdf5_data_train,all_hdf5_data_test,dataset_train_labelled
 
 
 

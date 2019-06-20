@@ -20,19 +20,19 @@ def argparser(is_train=True):
 
     parser.add_argument('--checkpoint', type=str, default=None)
 
-    parser.add_argument('--hdf5FileNametrain', type=str, default='train_MRIdata_2_AD_Normal.hdf5',
+    parser.add_argument('--hdf5FileNametrain', type=str, default='train_MRIdata_3_AD_MCI_Normal.hdf5',
                         choices=['train_MRIdata_3_AD_MCI_Normal.hdf5', 'train_MRIdata_2_AD_MCI.hdf5',
                                  'train_MRIdata_2_AD_Normal.hdf5', 'train_MRIdata_2_MCI_Normal.hdf5',
                                  'train_MRIdata_3_AD_MCI_Normal.hdf5', 'data.hdf5'])
-    parser.add_argument('--idFileNametrain', type=str, default='train_MRIdata_2_AD_Normal_id.txt',
+    parser.add_argument('--idFileNametrain', type=str, default='train_MRIdata_3_AD_MCI_Normal_id.txt',
                         choices=['train_MRIdata_3_AD_MCI_Normal_id.txt', 'train_MRIdata_2_AD_MCI_id.txt',
                                  'train_MRIdata_2_AD_Normal_id.txt', 'train_MRIdata_2_MCI_Normal_id.txt',
                                  'train_MRIdata_3_AD_MCI_Normal_id.txt', 'id.txt'])
-    parser.add_argument('--testhdf5FileName', type=str, default='test_MRIdata_2_AD_Normal.hdf5',
+    parser.add_argument('--testhdf5FileName', type=str, default='test_MRIdata_3_AD_MCI_Normal.hdf5',
                         choices=['test_MRIdata_3_AD_MCI_Normal.hdf5', 'test_MRIdata_2_AD_MCI.hdf5',
                                  'test_MRIdata_2_AD_Normal.hdf5', 'test_MRIdata_2_MCI_Normal.hdf5',
                                  'data.hdf5'])
-    parser.add_argument('--testidFileName', type=str, default='test_MRIdata_2_AD_Normal_id.txt',
+    parser.add_argument('--testidFileName', type=str, default='test_MRIdata_3_AD_MCI_Normal_id.txt',
                         choices=['test_MRIdata_3_AD_MCI_Normal_id.txt', 'test_MRIdata_2_AD_MCI_id.txt',
                                  'test_MRIdata_2_AD_Normal_id.txt', 'test_MRIdata_2_MCI_Normal_id.txt',
                                  'id.txt'])
@@ -69,6 +69,10 @@ def argparser(is_train=True):
 
     parser.add_argument('--update_rate', type=int, default=2)
     parser.add_argument('--num_gpus', type=int, default=2)
+    parser.add_argument(
+        '--num_less_label_data', type=int, choices=[0, 18, 36, 72, 144, 288],
+        default=0,
+        help='all data are unlabelled data, all data minus num_less_label_data is labelled data')
     # }}}
 
     # Testing config {{{

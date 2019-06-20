@@ -43,7 +43,7 @@ from tensorflow.python.framework import ops
 from tensorflow.python.ops import math_ops
 from sklearn.metrics import classification_report
 from data_providers.utils import get_data_provider_by_path
-from models.dense_net_3d import GAN3D
+from models.dense_net_3d import TripleGAN3D
 
 
 def construct_train_dir(config):
@@ -136,21 +136,25 @@ def main(argv=None):  # pylint: disable=unused-argument
     else:
         dataset_path = os.path.join(r"./datasets/mri/2_MCI_Normal/")
 
-    dataset_train, dataset_test, all_hdf5_data_train, all_hdf5_data_test = dataset.create_default_splits8020(
+    input_file_name = config.hdf5FileNametrain
+    name_list = input_file_name.split("_")
+    class_num=name_list[2]
+
+    dataset_train_unlabelled, dataset_test, all_hdf5_data_train, all_hdf5_data_test, dataset_train_labelled = dataset.create_default_splits8020(
         dataset_path, config.hdf5FileNametrain,
         config.testhdf5FileName,
         config.idFileNametrain,
-        config.testidFileName)
+        config.testidFileName,config.num_less_label_data,class_num)
 
-    data_provider = get_data_provider_by_path(config, dataset_train, dataset_test, all_hdf5_data_train,
+    data_provider = get_data_provider_by_path(config, dataset_train_unlabelled,dataset_train_labelled, dataset_test, all_hdf5_data_train,
                                               all_hdf5_data_test, 0)
 
-    model = GAN3D(config, data_provider, all_train_dir, 0, is_train=True)
+    model = TripleGAN3D(config, data_provider, all_train_dir, 0, is_train=True)
 
 
     if config.train:
         total_start_time = time.time()
-        print("Data provider train images: ", data_provider.train.num_examples)
+        print("Data provider train images: ", data_provider.train_labelled.num_examples)
         model.train_all_epochs(config)
         total_training_time = time.time() - total_start_time
         # f.close()

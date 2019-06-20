@@ -90,7 +90,7 @@ class EvalManager(object):
 
 
 
-class GAN3D(object):
+class TripleGAN3D(object):
   def __init__(self, config,data_provider,all_train_dir,whichFoldData,is_train=True):
     """
     Class to implement networks base on this paper
@@ -162,7 +162,7 @@ class GAN3D(object):
     self.weights = self.initialiseWeights()
     self.is_training = tf.placeholder_with_default(bool(is_train), [], name='is_training')
 
-    self.build_GAN()
+    self.build_triple_GAN()
 
 
 
@@ -253,7 +253,7 @@ class GAN3D(object):
 
 
 
-  def build_GAN(self):
+  def build_triple_GAN(self):
 
     self._define_inputs_D_G()
 
@@ -768,7 +768,7 @@ class GAN3D(object):
 
 
       mean_s_loss, mean_accuracy,mean_G_loss, mean_D_loss,mean_D_real_loss,mean_D_fake_loss,mean_gan_loss,lr,recon_w = self.train_one_epoch(
-        self.data_provider.train, batch_size, learning_rate,recon_weight,epoch)
+        self.data_provider.train_labelled, batch_size, learning_rate,recon_weight,epoch)
 
       self.log_one_metric(mean_s_loss, epoch, prefix='train_S_loss')
       self.log_one_metric(mean_G_loss, epoch, prefix='train_G_loss')
