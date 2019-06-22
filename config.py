@@ -13,7 +13,7 @@ def argparser(is_train=True):
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-    parser.add_argument('--debug', action='store_true', default=False)
+    parser.add_argument('--softmaxConvert', action='store_true', default=True)
     parser.add_argument('--prefix', type=str, default='default')
     parser.add_argument('--train_dir', type=str)
     parser.add_argument('--eval_dir', type=str, default='./data2/3dDenseNetEvaluate')
@@ -37,6 +37,24 @@ def argparser(is_train=True):
                                  'test_MRIdata_2_AD_Normal_id.txt', 'test_MRIdata_2_MCI_Normal_id.txt',
                                  'id.txt'])
 
+    # parser.add_argument('--hdf5FileNametrain', type=str, default='train_MRIdata_2_AD_Normal.hdf5',
+    #                     choices=['train_MRIdata_3_AD_MCI_Normal.hdf5', 'train_MRIdata_2_AD_MCI.hdf5',
+    #                              'train_MRIdata_2_AD_Normal.hdf5', 'train_MRIdata_2_MCI_Normal.hdf5',
+    #                              'train_MRIdata_3_AD_MCI_Normal.hdf5', 'data.hdf5'])
+    # parser.add_argument('--idFileNametrain', type=str, default='train_MRIdata_2_AD_Normal_id.txt',
+    #                     choices=['train_MRIdata_3_AD_MCI_Normal_id.txt', 'train_MRIdata_2_AD_MCI_id.txt',
+    #                              'train_MRIdata_2_AD_Normal_id.txt', 'train_MRIdata_2_MCI_Normal_id.txt',
+    #                              'train_MRIdata_3_AD_MCI_Normal_id.txt', 'id.txt'])
+    # parser.add_argument('--testhdf5FileName', type=str, default='test_MRIdata_2_AD_Normal.hdf5',
+    #                     choices=['test_MRIdata_3_AD_MCI_Normal.hdf5', 'test_MRIdata_2_AD_MCI.hdf5',
+    #                              'test_MRIdata_2_AD_Normal.hdf5', 'test_MRIdata_2_MCI_Normal.hdf5',
+    #                              'data.hdf5'])
+    # parser.add_argument('--testidFileName', type=str, default='test_MRIdata_2_AD_Normal_id.txt',
+    #                     choices=['test_MRIdata_3_AD_MCI_Normal_id.txt', 'test_MRIdata_2_AD_MCI_id.txt',
+    #                              'test_MRIdata_2_AD_Normal_id.txt', 'test_MRIdata_2_MCI_Normal_id.txt',
+    #                              'id.txt'])
+
+
 
 
 
@@ -59,7 +77,7 @@ def argparser(is_train=True):
     # learning
     parser.add_argument('--max_sample', type=int, default=50000,
                         help='num of samples the model can see')
-    parser.add_argument('--max_training_steps', type=int, default=1200)
+    parser.add_argument('--max_training_steps', type=int, default=2)
     parser.add_argument('--reduce_lr_epoch_1', type=int, default=75)
     parser.add_argument('--reduce_lr_epoch_2', type=int, default=110)
     parser.add_argument('--queue_size', type=int, default=30)
@@ -73,6 +91,16 @@ def argparser(is_train=True):
         '--num_less_label_data', type=int, choices=[0, 18, 36, 72, 144, 288],
         default=0,
         help='all data are unlabelled data, all data minus num_less_label_data is labelled data')
+
+    parser.add_argument(
+        '--d_loss_version', type=int, choices=[1, 2,3,4],
+        default=1,
+        help='d loss unlabelled data with predicted label by classifier should be 1 or 0, add RL regularization or not,only do 1 and 3 are enough')
+
+
+
+
+
     # }}}
 
     # Testing config {{{
@@ -116,7 +144,7 @@ def argparser(is_train=True):
         '--reduction', '-red', type=float, default=0.5, metavar='',
         help='reduction Theta at transition layer for DenseNets-BC models')
     parser.add_argument(
-        '--weight_decay', '-wd', type=float, default=1.0, metavar='',
+        '--weight_decay', '-wd', type=float, default=5e-4, metavar='',
         help='Weight decay for optimizer (default: %(default)s)')
 
     parser.add_argument(

@@ -413,48 +413,6 @@ def depthwise_conv2d(input, channel_multiplier, is_train, info=False, k=3, s=1,
         if info: print_info(name, _.get_shape().as_list(), activation_fn)
     return _
 
-def grouped_conv2d_Discriminator(input, num_outputs, groups, is_train, info=False, k=3, s=1,
-                      activation_fn=lrelu, norm='batch', name='groupedConv2d'):
-    with tf.variable_scope(name):
-        _ = grouped_convolution(input,num_outputs, [k, k],groups, stride=s)
-        _ = norm_and_act(_, is_train, norm=norm, activation_fn=activation_fn)
-        if info: print_info(name, _.get_shape().as_list(), activation_fn)
-    return _
-
-
-def grouped_conv2d_Discriminator_valid(input, num_outputs, groups, is_train, info=False, k=3, s=2,
-                      activation_fn=lrelu, norm='batch', name='groupedConv2d'):
-    with tf.variable_scope(name):
-        _ = grouped_convolution(input,num_outputs, [k, k],groups, stride=s,padding='VALID')
-        _ = norm_and_act(_, is_train, norm=norm, activation_fn=activation_fn)
-        if info: print_info(name, _.get_shape().as_list(), activation_fn)
-    return _
-
-def grouped_conv2d_Discriminator_one(input, num_outputs, groups, is_train, info=False, a=1,b=2, s=1,
-                      activation_fn=lrelu, norm='batch', name='groupedConv2dKdifferent'):
-    with tf.variable_scope(name):
-        _ = grouped_convolution(input,num_outputs, [a, b],groups, stride=s,padding='VALID')
-        _ = norm_and_act(_, is_train, norm=norm, activation_fn=activation_fn)
-        if info: print_info(name, _.get_shape().as_list(), activation_fn)
-    return _
-
-
-def grouped_conv2d(input, num_outputs, groups, is_train, info=False, k=3, s=1,
-                      activation_fn=lrelu, norm='batch', name='groupedConv2d'):
-    with tf.variable_scope(name):
-        _ = grouped_convolution(input,num_outputs, [k, k],groups, stride=s,padding='SAME')
-        _ = norm_and_act(_, is_train, norm=norm, activation_fn=activation_fn)
-        if info: print_info(name, _.get_shape().as_list(), activation_fn)
-    return _
-
-def grouped_conv2d_GsoP(input, num_outputs, groups, is_train=True, info=False, a=1, b=1,s=1,
-                       name='groupedConv2d'):
-    with tf.variable_scope(name):
-        _ = grouped_convolution(input,num_outputs, [a, b],groups, stride=s,padding='VALID')
-        # _ = norm_and_act(_, is_train, norm=norm, activation_fn=activation_fn)
-        if info: print_info(name, _.get_shape().as_list(),activation_fn=None)
-    return _
-
 def batch_norm_GAN(x):
     epsilon = 1e-3
     batch_mean, batch_var = tf.nn.moments(x, [1])
@@ -518,27 +476,6 @@ def excitation_layer(input_x,out_dim,orignialInput,is_train=True,name="GsoPexcit
     return scale
 
 
-def squeeze_excitation_layer(input_x, is_train=True, name="GsoP"):
-    with tf.variable_scope(name):
-        orignialInput = input_x
-        number_filters_each_group=8
-        out_dim = input_x.get_shape().as_list()[3]
-        covariance_matrix_shape = out_dim / number_filters_each_group
-        covariance_matrix_shape = np.dtype('int32').type(covariance_matrix_shape)
-        squeeze = slim.conv2d(input_x, covariance_matrix_shape, [1, 1], stride=1, activation_fn=None)
-
-        squeeze = Global_Covariance_Matrix(squeeze, False)
-
-        squeeze = tf.reshape(squeeze, [-1, 1, covariance_matrix_shape, covariance_matrix_shape])
-
-
-        excitation = grouped_conv2d_GsoP(squeeze, int(number_filters_each_group/2) * covariance_matrix_shape, covariance_matrix_shape, is_train=True, info=True,a = 1,  b=covariance_matrix_shape,
-                           s=1)
-        # excitation = grouped_conv_2d(squeeze, 4, [1, covariance_matrix_shape],  strides=1, padding='VALID', name=name)
-
-        scale = excitation_layer(excitation, out_dim, orignialInput, name=name)
-    return scale
-
 
 
 def nn_deconv2d(input, output_shape, is_train, info=False, k=3, s=2, stddev=0.01, 
@@ -561,3 +498,12 @@ def fc(input, output_shape, is_train, info=False, norm='batch',
         _ = norm_and_act(_, is_train, norm=norm, activation_fn=activation_fn)
         if info: print_info(name, _.get_shape().as_list(), activation_fn)
     return _
+
+def conv_concat(x, y):
+    x_shapes = x.get_shape()
+    y_shapes = y.get_shape()
+    shape = [x_shapes[0], x_shapes[1], x_shapes[2], x_shapes[3], y_shapes[4]]
+    add_label = tf.ones(shape)
+    add_label_with_y= y *add_label
+
+    return tf.concat([x, add_label_with_y], axis=4)

@@ -8,7 +8,7 @@ import numpy as np
 import tensorflow as tf
 from util import log
 import tensorflow.contrib.slim as slim
-
+from ops import conv_concat
 import csv
 TF_VERSION = float('.'.join(tf.__version__.split('.')[:2]))
 
@@ -127,6 +127,8 @@ class TripleGAN3D(object):
     # value the same as in the original Torch code
     self.first_output_features  = config.growth_rate * 2
     self.total_blocks           = config.total_blocks
+    self.softmaxConvert   = config.softmaxConvert
+    self.d_loss_version = config.d_loss_version
     self.layers_per_block       = (config.depth - (config.total_blocks + 1)) // config.total_blocks
     self.bc_mode = config.bc_mode
     # compression rate at the transition layers
@@ -158,8 +160,20 @@ class TripleGAN3D(object):
     self.renew_logs=config.renew_logs
     self.n_z = config.n_z
     self.batch_size = config.batch_size
+    self.alpha = 0.5
+    self.alpha_cla_adv=0.01
+    self.alpha_p = tf.placeholder(tf.float32, name='alpha_p')
+    # self.unsup_weight = tf.placeholder(tf.float32, name='unsup_weight')
+    # self.c_beta1 = tf.placeholder(tf.float32, name='c_beta1')
 
-    self.weights = self.initialiseWeights()
+    if self.n_classes==3:
+        self.weights = self.initialiseWeights_3_class()
+    else:
+        self.weights = self.initialiseWeights_2_class()
+
+
+
+
     self.is_training = tf.placeholder_with_default(bool(is_train), [], name='is_training')
 
     self.build_triple_GAN()
@@ -222,7 +236,7 @@ class TripleGAN3D(object):
 
     l2_loss = tf.add_n(
       [tf.nn.l2_loss(var) for var in d_var])
-    # total_d_loss = d_loss + l2_loss * self.weight_decay
+
     total_d_loss = 10 * D_L_Supervised + D_L_RealUnsupervised + D_L_FakeUnsupervised + l2_loss * self.weight_decay
 
     ### Generator loss ###
@@ -251,41 +265,170 @@ class TripleGAN3D(object):
     accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
     return D_L_Supervised, D_L_RealUnsupervised, D_L_FakeUnsupervised, total_d_loss, G_L, GAN_loss, accuracy
 
+  def discriminator(self, x, y_, scope="Discriminator", is_training=True, reuse=False):
+    with tf.variable_scope(scope, reuse=reuse):
 
+      y = tf.reshape(y_, [-1, 1, 1, 1, self.n_classes])
+      x = conv_concat(x, y)
+
+      growth_rate = self.growth_rate
+      layers_per_block = self.layers_per_block
+      # first - initial 3 x 3 x 3 conv to first_output_features
+
+      with tf.variable_scope("Discriminator"):
+        with tf.variable_scope("Initial_convolution"):
+          output = self.conv3d(
+            x,
+            out_features=self.first_output_features,
+            kernel_size=7,
+            strides=[1, 1, 2, 2, 1])
+          # first pooling
+          output = self.pool(output, k=3, d=3, k_stride=2, d_stride=1)
+
+        # add N required blocks
+        for block in range(self.total_blocks):
+          with tf.variable_scope("Block_%d" % block):
+            output = self.add_block(output, growth_rate, layers_per_block,y)
+          # last block exist without transition layer
+          if block != self.total_blocks - 1:
+            with tf.variable_scope("Transition_after_block_%d" % block):
+              # pool_depth = 1 if block == 0 else 2
+              pool_depth = 2
+              output = self.transition_layer(output, pool_depth,y=y)
+
+        with tf.variable_scope("Transition_to_classes"):
+          logits = self.trainsition_layer_to_1(output,y)
+
+          prediction = tf.nn.sigmoid(logits)
+
+
+
+      return prediction, logits
 
   def build_triple_GAN(self):
 
     self._define_inputs_D_G()
 
-    self.fake_image = self._build_graph_G(self.z_vector,phase_train=self.is_training)
-    d_real_softmax, d_no_softmax_real,d_real_feature_map = self._build_graph_D(self.x_vector, reuse=False)
-    d_fake_softmax, d_no_softmax_fake,d_fake_feature_map = self._build_graph_D(self.fake_image, reuse=True)
+    """ Loss Function """
+    # output of D for real images
+    D_real, D_real_logits = self.discriminator(self.labelled_inputs, self.labels, is_training=True, reuse=False)
 
-    # Compute the discriminator and generator loss
-    # d_loss = -tf.reduce_mean(tf.log(d_real) + tf.log(1-d_fake))
-    # g_loss = -tf.reduce_mean(tf.log(d_fake))
-    n=self.n_classes
+    # output of D for fake images
+    self.fake_image = self.generator(self.z_vector, self.labels,phase_train=self.is_training, reuse=False)
+    D_fake, D_fake_logits = self.discriminator(self.fake_image, self.labels, is_training=True, reuse=True)
+
+    # output of C for real images
+    C_real_softmax, C_real_logits = self.classifier(self.labelled_inputs, is_training=True, reuse=False)
+    R_L = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=self.labels, logits=C_real_logits))
+
+    # output of D for unlabelled images
+    C_real_unlabel_softmax, C_real_unlabel_logits = self.classifier(self.unlabelled_inputs, is_training=True, reuse=True)
+########################################################################################
+    # C_real_unlabel_softmax to one_hot label
+    if self.softmaxConvert:
+        condition = tf.less(C_real_unlabel_softmax, 0.5)
+        C_real_unlabel_softmax = tf.where(condition, C_real_unlabel_softmax * 0, C_real_unlabel_softmax * 0 + 1.0)
 
 
-    self.S_loss, self.d_loss_real, self.d_loss_fake, self.d_loss, self.g_loss, self.GAN_loss, self.accuracy = \
-      self.build_loss(d_real_softmax, d_no_softmax_real, d_fake_softmax, d_no_softmax_fake, self.labels, self.x_vector, self.fake_image,d_real_feature_map,d_fake_feature_map)
 
-    # tf.summary.scalar("loss/accuracy", self.accuracy)
-    # tf.summary.scalar("loss/GAN_loss", GAN_loss)
-    # tf.summary.scalar("loss/S_loss", self.S_loss)
-    # tf.summary.scalar("loss/d_loss", tf.reduce_mean(self.d_loss))
-    # tf.summary.scalar("loss/d_loss_real", tf.reduce_mean(d_loss_real))
-    # tf.summary.scalar("loss/d_loss_fake", tf.reduce_mean(d_loss_fake))
-    # tf.summary.scalar("loss/g_loss", tf.reduce_mean(self.g_loss))
-    # tf.summary.image("img/fake", fake_image)
-    # tf.summary.image("img/real", self.image, max_outputs=1)
-    # tf.summary.image("label/target_real", tf.reshape(self.label, [1, self.batch_size, n, 1]))
+    #####################################################################3
+
+
+    D_unlabel_classfier_sigmoid, D_unlabel_classfier_logits = self.discriminator(self.unlabelled_inputs, C_real_unlabel_softmax, is_training=True, reuse=True)
+    # output of C for fake images
+    C_fake_softmax, C_fake_logits = self.classifier(self.fake_image, is_training=True, reuse=True)
+    R_G = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=self.labels, logits=C_fake_logits))
+
+    # get loss for discriminator
+    if self.d_loss_version==1:
+        d_loss_real = tf.reduce_mean(
+            tf.nn.sigmoid_cross_entropy_with_logits(logits=D_real_logits, labels=tf.ones_like(D_real)))
+        d_loss_fake = (1 - self.alpha) * tf.reduce_mean(
+            tf.nn.sigmoid_cross_entropy_with_logits(logits=D_fake_logits, labels=tf.zeros_like(D_fake)))
+        d_loss_cla = self.alpha * tf.reduce_mean(
+            tf.nn.sigmoid_cross_entropy_with_logits(logits=D_unlabel_classfier_logits,
+                                                    labels=tf.zeros_like(D_unlabel_classfier_sigmoid)))
+        self.d_loss = d_loss_real + d_loss_fake + d_loss_cla
+    elif self.d_loss_version==2:
+        d_loss_real = tf.reduce_mean(
+            tf.nn.sigmoid_cross_entropy_with_logits(logits=D_real_logits, labels=tf.ones_like(D_real)))
+        d_loss_fake = (1 - self.alpha) * tf.reduce_mean(
+            tf.nn.sigmoid_cross_entropy_with_logits(logits=D_fake_logits, labels=tf.zeros_like(D_fake)))
+        d_loss_cla = self.alpha * tf.reduce_mean(
+            tf.nn.sigmoid_cross_entropy_with_logits(logits=D_unlabel_classfier_logits,
+                                                    labels=tf.ones_like(D_unlabel_classfier_sigmoid)))
+        self.d_loss = d_loss_real + d_loss_fake + d_loss_cla
+    elif self.d_loss_version==3:
+        d_loss_real = tf.reduce_mean(
+            tf.nn.sigmoid_cross_entropy_with_logits(logits=D_real_logits, labels=tf.ones_like(D_real)))
+        d_loss_fake = (1 - self.alpha) * tf.reduce_mean(
+            tf.nn.sigmoid_cross_entropy_with_logits(logits=D_fake_logits, labels=tf.zeros_like(D_fake)))
+        d_loss_cla = self.alpha * tf.reduce_mean(
+            tf.nn.sigmoid_cross_entropy_with_logits(logits=D_unlabel_classfier_logits,
+                                                    labels=tf.zeros_like(D_unlabel_classfier_sigmoid)))
+        self.d_loss = d_loss_real + d_loss_fake + d_loss_cla + R_L
+    else:
+        d_loss_real = tf.reduce_mean(
+            tf.nn.sigmoid_cross_entropy_with_logits(logits=D_real_logits, labels=tf.ones_like(D_real)))
+        d_loss_fake = (1 - self.alpha) * tf.reduce_mean(
+            tf.nn.sigmoid_cross_entropy_with_logits(logits=D_fake_logits, labels=tf.zeros_like(D_fake)))
+        d_loss_cla = self.alpha * tf.reduce_mean(
+            tf.nn.sigmoid_cross_entropy_with_logits(logits=D_unlabel_classfier_logits,
+                                                    labels=tf.ones_like(D_unlabel_classfier_sigmoid)))
+        self.d_loss = d_loss_real + d_loss_fake + d_loss_cla+ R_L
+
+
+    # get loss for generator
+    self.g_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=D_fake_logits, labels=tf.ones_like(D_fake)))
+
+    # get loss for classify
+    # max_c = tf.cast(tf.argmax(Y_c, axis=1), tf.float32)
+    c_loss_dis = self.alpha * tf.reduce_mean(
+            tf.nn.sigmoid_cross_entropy_with_logits(logits=D_unlabel_classfier_logits,
+                                                    labels=tf.ones_like(D_unlabel_classfier_sigmoid)))
+    # self.c_loss = alpha * c_loss_dis + R_L + self.alpha_p*R_P
+
+    # R_UL = self.unsup_weight * tf.reduce_mean(tf.squared_difference(Y_c, self.unlabelled_inputs_y))
+
+    all_var = tf.trainable_variables()
+    d_var = [v for v in all_var if v.name.startswith('Discriminator')]
+    c_var = [v for v in all_var if v.name.startswith('Classfier')]
+
+    l2_d_loss = tf.add_n([tf.nn.l2_loss(var) for var in d_var])
+    l2_c_loss = tf.add_n([tf.nn.l2_loss(var) for var in c_var])
+
+    self.c_loss = c_loss_dis + R_L + self.alpha_p * R_G + l2_c_loss * self.weight_decay
+    self.d_loss = self.d_loss + l2_d_loss * self.weight_decay
+
+    self.all_preds = tf.argmax(C_real_softmax, 1)
+    self.all_targets = tf.argmax(self.labels, 1)
+
+    correct_prediction = tf.equal(tf.argmax(C_real_softmax, 1), tf.argmax(self.labels, 1))
+    self.accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+
+
+    all_var = tf.trainable_variables()
+    d_var = [v for v in all_var if v.name.startswith('Discriminator')]
+    c_var = [v for v in all_var if v.name.startswith('Classfier')]
+    g_var = [v for v in all_var if v.name.startswith('Generator')]
+
+    log.warn("********* all_var ********** ")
+    slim.model_analyzer.analyze_vars(all_var, print_info=True)
+    log.warn("********* Discriminator   var ********** ")
+    slim.model_analyzer.analyze_vars(d_var, print_info=True)
+    log.warn("********* Classfier   var ********** ")
+    slim.model_analyzer.analyze_vars(c_var, print_info=True)
+    log.warn("********* Generator  var ********** ")
+    slim.model_analyzer.analyze_vars(g_var, print_info=True)
+
+
     log.warn('\033[93mSuccessfully loaded the model.\033[0m')
 
     # net_g_test = self._build_graph_G(self.z_vector, phase_train=False, reuse=True)
 
     para_g = [v for v in tf.trainable_variables() if v.name.startswith('Generator')]
     para_d = [v for v in tf.trainable_variables() if v.name.startswith('Discriminator')]
+    para_c = [v for v in tf.trainable_variables() if v.name.startswith('Classfier')]
 
     # only update the weights for the discriminator network
 
@@ -294,22 +437,41 @@ class TripleGAN3D(object):
     # only update the weights for the generator network
     self.optimizer_op_g = tf.train.AdamOptimizer(learning_rate=0.01, beta1=0.5).minimize(self.g_loss, var_list=para_g)
 
+    self.optimizer_op_c = tf.train.MomentumOptimizer(
+      self.learning_rate, self.nesterov_momentum, use_nesterov=True).minimize(self.c_loss, var_list=para_c)
 
 
 
-  def initialiseWeights(self):
+
+  def initialiseWeights_3_class(self):
 
     weights = {}
     xavier_init = tf.contrib.layers.xavier_initializer()
 
     weights['wg1'] = tf.get_variable("wg1", shape=[4, 3, 3, 512, 128], initializer=xavier_init)
-    weights['wg2'] = tf.get_variable("wg2", shape=[4, 4, 4, 256, 512], initializer=xavier_init)
-    weights['wg3'] = tf.get_variable("wg3", shape=[4, 4, 4, 128, 256], initializer=xavier_init)
-    weights['wg4'] = tf.get_variable("wg4", shape=[4, 4, 4, 64, 128], initializer=xavier_init)
-    weights['wg5'] = tf.get_variable("wg5", shape=[4, 4, 4, 32, 64], initializer=xavier_init)
-    weights['wg6'] = tf.get_variable("wg6", shape=[4, 4, 4, 1, 32], initializer=xavier_init)
+    weights['wg2'] = tf.get_variable("wg2", shape=[4, 4, 4, 256, 515], initializer=xavier_init)
+    weights['wg3'] = tf.get_variable("wg3", shape=[4, 4, 4, 128, 259], initializer=xavier_init)
+    weights['wg4'] = tf.get_variable("wg4", shape=[4, 4, 4, 64, 131], initializer=xavier_init)
+    weights['wg5'] = tf.get_variable("wg5", shape=[4, 4, 4, 32, 67], initializer=xavier_init)
+    weights['wg6'] = tf.get_variable("wg6", shape=[4, 4, 4, 1, 35], initializer=xavier_init)
 
     return weights
+
+  def initialiseWeights_2_class(self):
+
+    weights = {}
+    xavier_init = tf.contrib.layers.xavier_initializer()
+
+    weights['wg1'] = tf.get_variable("wg1", shape=[4, 3, 3, 512, 128], initializer=xavier_init)
+    weights['wg2'] = tf.get_variable("wg2", shape=[4, 4, 4, 256, 514], initializer=xavier_init)
+    weights['wg3'] = tf.get_variable("wg3", shape=[4, 4, 4, 128, 258], initializer=xavier_init)
+    weights['wg4'] = tf.get_variable("wg4", shape=[4, 4, 4, 64, 130], initializer=xavier_init)
+    weights['wg5'] = tf.get_variable("wg5", shape=[4, 4, 4, 32, 66], initializer=xavier_init)
+    weights['wg6'] = tf.get_variable("wg6", shape=[4, 4, 4, 1, 34], initializer=xavier_init)
+
+    return weights
+
+
 
   def huber_loss(self, labels, predictions, delta=1.0):
     residual = tf.abs(predictions - labels)
@@ -432,16 +594,22 @@ class TripleGAN3D(object):
 
   # (Updated)
   def _define_inputs_D_G(self):
-    shape = [None]
+    shape = [self.batch_size]
     shape.extend(self.data_shape)
     # self.videos = tf.placeholder(
     #   tf.float32,
     #   shape=shape,
     #   name='input_videos')
+
+
+    # labels
     self.labels = tf.placeholder(
       dtype=tf.float32,
-      shape=[None, self.n_classes],
+      shape=[self.batch_size, self.n_classes],
       name='labels')
+    self.unlabelled_inputs_y = tf.placeholder(dtype=tf.float32,shape=[self.batch_size, self.n_classes])
+    self.test_label = tf.placeholder(dtype=tf.float32,shape=[None, self.n_classes], name='test_label')
+
 
 
 
@@ -453,15 +621,20 @@ class TripleGAN3D(object):
     self.recon_weight = tf.placeholder_with_default(
       tf.cast(1.0, tf.float32), [])
 
+    """ Graph Input """
+    # images
+    self.labelled_inputs = tf.placeholder(shape=shape, dtype=tf.float32, name='real_images')
+    self.unlabelled_inputs = tf.placeholder(shape=shape, dtype=tf.float32, name='unlabelled_images')
+    self.test_inputs = tf.placeholder(shape=shape, dtype=tf.float32, name='test_images')
 
-    self.x_vector = tf.placeholder(shape=shape, dtype=tf.float32)
-    self.z_vector = tf.placeholder(shape=[None, self.n_z], dtype=tf.float32)
+
+    self.z_vector = tf.placeholder(shape=[self.batch_size, self.n_z], dtype=tf.float32)
     # self.labeled_mask = tf.placeholder(dtype=tf.float32, name = 'labeled_mask', shape = [None])
 
 
 
     # (Updated)
-  def composite_function(self, _input, out_features, kernel_size=3):
+  def composite_function(self, _input, out_features, kernel_size=3,y=None):
     """Function from paper H_l that performs:
     - batch normalization
     - ReLU nonlinearity
@@ -474,6 +647,14 @@ class TripleGAN3D(object):
       # ReLU
       with tf.name_scope("ReLU"):
         output = tf.nn.relu(output)
+
+      if y==None:
+        print"for classifier no y add"
+      else:
+        output = conv_concat(output, y)
+
+
+
       # convolution
       output = self.conv3d(
         output, out_features=out_features, kernel_size=kernel_size)
@@ -482,12 +663,20 @@ class TripleGAN3D(object):
     return output
 
   # (Updated)
-  def bottleneck(self, _input, out_features):
+  def bottleneck(self, _input, out_features,add_y=None):
     with tf.variable_scope("bottleneck"):
       output = self.batch_norm(_input)
       with tf.name_scope("ReLU"):
         output = tf.nn.relu(output)
       inter_features = out_features * 4
+
+      if add_y==None:
+        print "for classfier don't add y"
+
+      else:
+        output = conv_concat(output, add_y)
+
+
       output = self.conv3d(
         output, out_features=inter_features, kernel_size=1,
         padding='VALID')
@@ -495,7 +684,7 @@ class TripleGAN3D(object):
     return output
 
   # (Updated)
-  def add_internal_layer(self, _input, growth_rate):
+  def add_internal_layer(self, _input, growth_rate,y=None):
     """Perform H_l composite function for the layer and after concatenate
     input with output from composite function.
     """
@@ -504,9 +693,9 @@ class TripleGAN3D(object):
       comp_out = self.composite_function(
         _input, out_features=growth_rate, kernel_size=3)
     elif self.bc_mode:
-      bottleneck_out = self.bottleneck(_input, out_features=growth_rate)
+      bottleneck_out = self.bottleneck(_input, out_features=growth_rate,add_y=y)
       comp_out = self.composite_function(
-        bottleneck_out, out_features=growth_rate, kernel_size=3)
+        bottleneck_out, out_features=growth_rate, kernel_size=3,y=y)
     # concatenate _input with out from composite function
     with tf.name_scope("concat"):
       if TF_VERSION >= 1.0:
@@ -515,30 +704,87 @@ class TripleGAN3D(object):
         output = tf.concat(4, (_input, comp_out))
     return output
 
+
+
   # (Updated)
-  def add_block(self, _input, growth_rate, layers_per_block):
+  def add_block(self, _input, growth_rate, layers_per_block,y=None):
     """Add N H_l internal layers"""
     output = _input
     for layer in range(layers_per_block):
       with tf.variable_scope("layer_%d" % layer):
-        output = self.add_internal_layer(output, growth_rate)
+        output = self.add_internal_layer(output, growth_rate,y)
     return output
 
+
+
+
   # (Updated)
-  def transition_layer(self, _input, pool_depth=2):
+  def transition_layer(self, _input, pool_depth=2,y=None):
     """Call H_l composite function with 1x1 kernel and pooling
     """
     # call composite function with 1x1 kernel
     out_features = int(int(_input.get_shape()[-1]) * self.reduction)
     output = self.composite_function(
-      _input, out_features=out_features, kernel_size=1)
+      _input, out_features=out_features, kernel_size=1,y=y)
     # run pooling
     with tf.name_scope("pooling"):
       output = self.pool(output, k=2, d=pool_depth)
     return output
 
+  def trainsition_layer_to_1(self, _input,y):
+    """This is last transition to get probabilities by classes. It perform:
+    - batch normalization
+    - ReLU nonlinearity
+    - wide pooling
+    - FC layer multiplication
+    """
+    # BN
+    output = self.batch_norm(_input)
+    # ReLU
+    with tf.name_scope("ReLU"):
+      output = tf.nn.relu(output)
+    output = conv_concat(output, y)
+    # pooling
+    last_pool_kernel_width = int(output.get_shape()[-2])
+    last_pool_kernel_height = int(output.get_shape()[-3])
+    last_sequence_length = int(output.get_shape()[1])
+    with tf.name_scope("pooling"):
+      output = self.pool(output, k=last_pool_kernel_height,
+                         d=last_sequence_length,
+                         width_k=last_pool_kernel_width,
+                         k_stride_width=last_pool_kernel_width)
+    # FC
+    features_total = int(output.get_shape()[-1])
+    output = tf.reshape(output, [-1, features_total])
+    W = self.weight_variable_xavier(
+      [features_total, 1], name='W')
+    bias = self.bias_variable([1])
+    logits = tf.matmul(output, W) + bias
+    # Local
+    # features_total = int(output.get_shape()[-1])
+    # output = tf.reshape(output, [-1, features_total])
+    # lc_weight = self.weight_variable_xavier(
+    #   [features_total, 100], name='lc_weight')
+    # lc_bias = self.bias_variable([100], 'lc_bias')
+    # local = tf.nn.relu(tf.matmul(output, lc_weight) + lc_bias)
+    # local = self.dropout(local)
+    # # Second Local
+    # lc2_weight = self.weight_variable_xavier(
+    #   [100, 100], name='lc2_weight')
+    # lc2_bias = self.bias_variable([100], 'lc2_bias')
+    # local2 = tf.nn.relu(tf.matmul(local, lc2_weight) + lc2_bias)
+    # local2 = self.dropout(local2)
+    # # Classification
+    # weight = self.weight_variable_xavier(
+    #   [100, self.n_classes], name='weight')
+    # bias = self.bias_variable([self.n_classes], 'bias')
+    # logits = tf.matmul(local2, weight) + bias
+    return logits
+
+
+
   # (Updated)
-  def trainsition_layer_to_classes(self, _input,out_feature_map):
+  def trainsition_layer_to_classes(self, _input):
     """This is last transition to get probabilities by classes. It perform:
     - batch normalization
     - ReLU nonlinearity
@@ -555,20 +801,37 @@ class TripleGAN3D(object):
     last_pool_kernel_height = int(output.get_shape()[-3])
     last_sequence_length = int(output.get_shape()[1])
     with tf.name_scope("pooling"):
-      output = self.pool(output, k = last_pool_kernel_height,
-                         d = last_sequence_length,
-                         width_k = last_pool_kernel_width,
-                         k_stride_width = last_pool_kernel_width)
+      output = self.pool(output, k=last_pool_kernel_height,
+                         d=last_sequence_length,
+                         width_k=last_pool_kernel_width,
+                         k_stride_width=last_pool_kernel_width)
     # FC
     features_total = int(output.get_shape()[-1])
     output = tf.reshape(output, [-1, features_total])
-    out_feature_map.append(output)
     W = self.weight_variable_xavier(
-      [features_total, self.n_classes+1], name='W')
-    bias = self.bias_variable([self.n_classes+1])
+      [features_total, self.n_classes], name='W')
+    bias = self.bias_variable([self.n_classes])
     logits = tf.matmul(output, W) + bias
-
-    return logits,out_feature_map
+    # Local
+    # features_total = int(output.get_shape()[-1])
+    # output = tf.reshape(output, [-1, features_total])
+    # lc_weight = self.weight_variable_xavier(
+    #   [features_total, 100], name='lc_weight')
+    # lc_bias = self.bias_variable([100], 'lc_bias')
+    # local = tf.nn.relu(tf.matmul(output, lc_weight) + lc_bias)
+    # local = self.dropout(local)
+    # # Second Local
+    # lc2_weight = self.weight_variable_xavier(
+    #   [100, 100], name='lc2_weight')
+    # lc2_bias = self.bias_variable([100], 'lc2_bias')
+    # local2 = tf.nn.relu(tf.matmul(local, lc2_weight) + lc2_bias)
+    # local2 = self.dropout(local2)
+    # # Classification
+    # weight = self.weight_variable_xavier(
+    #   [100, self.n_classes], name='weight')
+    # bias = self.bias_variable([self.n_classes], 'bias')
+    # logits = tf.matmul(local2, weight) + bias
+    return logits
   
   # (Updated)
   def conv3d(self, _input, out_features, kernel_size,
@@ -639,93 +902,95 @@ class TripleGAN3D(object):
     return tf.get_variable(name, initializer=initial)
 
 
-  def _build_graph_G(self, z, phase_train=True):
-    strides = [1, 2, 2, 2, 1]
-    weights=self.weights
-    batch_size=self.batch_size
+  def generator(self, z, y, phase_train=True, reuse=False):
+      strides = [1, 2, 2, 2, 1]
+      weights=self.weights
+      batch_size=self.batch_size
+      with tf.variable_scope("Generator",reuse=reuse):
+          x = tf.concat([z, y], axis=1)
+          x = tf.layers.dense(inputs=x, units=4*3*3*512, kernel_initializer=tf.contrib.layers.variance_scaling_initializer())
+          x = tf.nn.relu(x)
+          x = tf.contrib.layers.batch_norm(x, is_training=phase_train)
+
+          x = tf.reshape(x, (self.batch_size, 4, 3, 3, 512))
+
+          y = tf.reshape(y, [-1, 1, 1, 1,self.n_classes])
+          x = conv_concat(x, y)
+
+          # g_1 = tf.nn.conv3d_transpose(z, weights['wg1'], (batch_size, 4, 3, 3, 512), strides=[1, 1, 1, 1, 1],
+          #                              padding="VALID")
+          #
+          # g_1 = tf.contrib.layers.batch_norm(g_1, is_training=phase_train)
+          # g_1 = tf.nn.relu(g_1)
+
+          g_2 = tf.nn.conv3d_transpose(x, weights['wg2'], (batch_size, 7, 6, 6, 256), strides=strides, padding="SAME")
+          g_2 = tf.contrib.layers.batch_norm(g_2, is_training=phase_train)
+          g_2 = tf.nn.relu(g_2)
+          g_2 = conv_concat(g_2, y)
+
+          g_3 = tf.nn.conv3d_transpose(g_2, weights['wg3'], (batch_size, 14, 12, 12, 128), strides=strides, padding="SAME")
+          g_3 = tf.contrib.layers.batch_norm(g_3, is_training=phase_train)
+          g_3 = tf.nn.relu(g_3)
+          g_3 = conv_concat(g_3, y)
+
+          g_4 = tf.nn.conv3d_transpose(g_3, weights['wg4'], (batch_size, 28, 23, 23, 64), strides=strides, padding="SAME")
+          g_4 = tf.contrib.layers.batch_norm(g_4, is_training=phase_train)
+          g_4 = tf.nn.relu(g_4)
+          g_4 = conv_concat(g_4, y)
+
+          g_5 = tf.nn.conv3d_transpose(g_4, weights['wg5'], (batch_size, 55, 46, 46, 32), strides=strides, padding="SAME")
+          g_5 = tf.contrib.layers.batch_norm(g_5, is_training=phase_train)
+          g_5 = tf.nn.relu(g_5)
+          g_5 = conv_concat(g_5, y)
+
+          g_6 = tf.nn.conv3d_transpose(g_5, weights['wg6'], (batch_size, 109, 91, 91, 1), strides=strides, padding="SAME")
+
+          g_6 = tf.nn.tanh(g_6)
+
+          # print g_1, 'g1'
+          print g_2, 'g2'
+          print g_3, 'g3'
+          print g_4, 'g4'
+          print g_5, 'g5'
+          print g_6, 'g6'
+
+          return g_6
 
 
-    with tf.variable_scope("Generator"):
-      z = tf.reshape(z, (self.batch_size, 1, 1, 1, self.n_z))
-      g_1 = tf.nn.conv3d_transpose(z, weights['wg1'], (batch_size, 4, 3, 3, 512), strides=[1, 1, 1, 1, 1],
-                                   padding="VALID")
-      # g_1 = tf.nn.conv3d_transpose(z, weights['wg1'], (batch_size, 4, 3, 3, 512), strides=strides,
-      #                              padding="SAME")
-      g_1 = tf.contrib.layers.batch_norm(g_1, is_training=phase_train)
-      g_1 = tf.nn.relu(g_1)
-
-      g_2 = tf.nn.conv3d_transpose(g_1, weights['wg2'], (batch_size, 7, 6, 6, 256), strides=strides, padding="SAME")
-      g_2 = tf.contrib.layers.batch_norm(g_2, is_training=phase_train)
-      g_2 = tf.nn.relu(g_2)
-
-      g_3 = tf.nn.conv3d_transpose(g_2, weights['wg3'], (batch_size, 14, 12, 12, 128), strides=strides, padding="SAME")
-      g_3 = tf.contrib.layers.batch_norm(g_3, is_training=phase_train)
-      g_3 = tf.nn.relu(g_3)
-
-      g_4 = tf.nn.conv3d_transpose(g_3, weights['wg4'], (batch_size, 28, 23, 23, 64), strides=strides, padding="SAME")
-      g_4 = tf.contrib.layers.batch_norm(g_4, is_training=phase_train)
-      g_4 = tf.nn.relu(g_4)
-
-      g_5 = tf.nn.conv3d_transpose(g_4, weights['wg5'], (batch_size, 55, 46, 46, 32), strides=strides, padding="SAME")
-      g_5 = tf.contrib.layers.batch_norm(g_5, is_training=phase_train)
-      g_5 = tf.nn.relu(g_5)
-
-      g_6 = tf.nn.conv3d_transpose(g_5, weights['wg6'], (batch_size, 109, 91, 91, 1), strides=strides, padding="SAME")
-
-      g_6 = tf.nn.tanh(g_6)
-
-    print g_1, 'g1'
-    print g_2, 'g2'
-    print g_3, 'g3'
-    print g_4, 'g4'
-    print g_5, 'g5'
-    print g_6, 'g6'
-
-    return g_6
 
 
 
-
-
-  def _build_graph_D(self,mri,reuse=False):
+  def classifier(self,mri,is_training=True, reuse=False):
     growth_rate = self.growth_rate
     layers_per_block = self.layers_per_block
     # first - initial 3 x 3 x 3 conv to first_output_features
 
-
-    with tf.variable_scope("Discriminator", reuse=reuse):
-      out_feature_map=[]
+    with tf.variable_scope("Classfier", reuse=reuse):
       with tf.variable_scope("Initial_convolution"):
         output = self.conv3d(
           mri,
           out_features=self.first_output_features,
           kernel_size=7,
           strides=[1, 1, 2, 2, 1])
-
         # first pooling
         output = self.pool(output, k=3, d=3, k_stride=2, d_stride=1)
-
 
       # add N required blocks
       for block in range(self.total_blocks):
         with tf.variable_scope("Block_%d" % block):
           output = self.add_block(output, growth_rate, layers_per_block)
-          out_feature_map.append(output)
-
         # last block exist without transition layer
         if block != self.total_blocks - 1:
           with tf.variable_scope("Transition_after_block_%d" % block):
             # pool_depth = 1 if block == 0 else 2
             pool_depth = 2
             output = self.transition_layer(output, pool_depth)
-            out_feature_map.append(output)
-
 
       with tf.variable_scope("Transition_to_classes"):
-        logits,out_feature_map = self.trainsition_layer_to_classes(output,out_feature_map)
+        logits = self.trainsition_layer_to_classes(output)
 
-    logits_softmax = tf.nn.softmax(logits)
-    return logits_softmax, logits,out_feature_map
+    self.prediction = tf.nn.softmax(logits)
+    return self.prediction, logits
 
 
   # (Updated)
@@ -760,23 +1025,23 @@ class TripleGAN3D(object):
         learning_rate = learning_rate / 100
         print("Decrease learning rate, new lr = %f" % learning_rate)
 
-      recon_weight= min(max(0, (1500 - epoch) / 1500), 1.0) * 10
-      # recon_weight = ((1500 - epoch) / 1500) * 10
+      if epoch >= 200:
+        alpha_p = 0.6
+      else:
+        alpha_p = 0.0
+
 
       print("Training...")
 
 
 
-      mean_s_loss, mean_accuracy,mean_G_loss, mean_D_loss,mean_D_real_loss,mean_D_fake_loss,mean_gan_loss,lr,recon_w = self.train_one_epoch(
-        self.data_provider.train_labelled, batch_size, learning_rate,recon_weight,epoch)
+      mean_C_loss, mean_accuracy, mean_G_loss, mean_D_loss, alpha_p, lr = self.train_one_epoch(
+        self.data_provider, batch_size, learning_rate,epoch,alpha_p)
 
-      self.log_one_metric(mean_s_loss, epoch, prefix='train_S_loss')
+      self.log_one_metric(mean_D_loss, epoch, prefix='train_C_loss')
       self.log_one_metric(mean_G_loss, epoch, prefix='train_G_loss')
-      self.log_one_metric(mean_D_real_loss, epoch, prefix='train_D_real_loss')
-      self.log_one_metric(mean_D_fake_loss, epoch, prefix='train_D_fake_loss')
-      self.log_one_metric(mean_gan_loss, epoch, prefix='train_gan_loss')
 
-      self.log_loss_accuracy(mean_D_loss, mean_accuracy, epoch, prefix='train_D')
+      self.log_loss_accuracy(mean_C_loss, mean_accuracy, epoch, prefix='train_C')
 
 
       summary = tf.Summary(value=[
@@ -788,18 +1053,16 @@ class TripleGAN3D(object):
 
       summary = tf.Summary(value=[
         tf.Summary.Value(
-          tag='recon_weight', simple_value=float(recon_w))
+          tag='weight_g_loss_alpha_p', simple_value=float(alpha_p))
       ])
 
       self.summary_writer.add_summary(summary, epoch)
 
       print("Validation...")
-      mean_d_loss_real,mean_accuracy,mean_s_loss = self.test(
+      mean_accuracy,mean_c_loss = self.test(
         self.data_provider.test, batch_size)
 
-      self.log_one_metric(mean_s_loss, epoch, prefix='test_S_loss')
-      self.log_one_metric(mean_d_loss_real, epoch, prefix='test_D_real_loss')
-      self.log_loss_accuracy(mean_d_loss_real, mean_accuracy, epoch, prefix='test_D')
+      self.log_loss_accuracy(mean_c_loss, mean_accuracy, epoch, prefix='test_C')
 
       time_per_epoch = time.time() - start_time
       seconds_left = int((n_epochs - epoch) * time_per_epoch)
@@ -815,14 +1078,12 @@ class TripleGAN3D(object):
 
 
   # (Updated)
-  def train_one_epoch(self, data, batch_size, learning_rate,recon_weight,epoch):
-    num_examples = data.num_examples
-    total_gan_loss = []
-    total_D_fake_loss = []
-    total_D_real_loss = []
+  def train_one_epoch(self, data, batch_size, learning_rate,epoch,alpha_p):
+    num_examples = data.train_unlabelled.num_examples
+    total_C_loss = []
     total_D_loss = []
     total_G_loss = []
-    total_s_loss = []
+
     total_accuracy = []
 
 
@@ -835,123 +1096,95 @@ class TripleGAN3D(object):
       #   [batch_size, num_classes]
 
 
-      mris, labels = data.next_batch(batch_size)
+      mri_unlabel, unlabel_labels = data.train_unlabelled.next_batch(batch_size)
+      mri_label, label_labels = data.train_labelled.next_batch(batch_size)
 
-      # mask = self.get_labeled_mask(self.labeled_rate, batch_size)
-
-
-
-      fetch = [self.GAN_loss,self.d_loss_fake,self.d_loss_real,self.accuracy,
-                 self.d_loss, self.g_loss, self.S_loss,
-                 self.all_preds, self.all_targets,
-                 self.fake_image, self.learning_rate,self.recon_weight]
+      feed_dict = {self.z_vector: z, self.labelled_inputs: mri_label,self.unlabelled_inputs: mri_unlabel, self.learning_rate: learning_rate, self.alpha_p: alpha_p,self.is_training: True,self.labels:label_labels}
 
 
 
-      gan_loss_per_batch,d_loss_fake_per_batch,d_loss_real_per_batch, accuracy_per_batch,d_loss_per_batch,g_loss_per_batch,s_loss_per_batch,predicts_per_batch,gt_per_batch,fake_image_batch,lr,recon_w = self.sess.run(fetch, feed_dict={self.z_vector: z, self.x_vector: mris, self.learning_rate: learning_rate, self.recon_weight: recon_weight,self.is_training: True,self.labels:labels})
 
-      if epoch % (2) > 0:
-          # Train the generator
-          self.sess.run([self.optimizer_op_g], feed_dict={self.z_vector: z, self.x_vector: mris, self.learning_rate: learning_rate, self.recon_weight: recon_weight,self.is_training: True,self.labels:labels})
-          print("epoch:"+str(epoch)+"update generater parameters, optimize G")
-      else:
-          # Train the discriminator
-          self.sess.run([self.optimizer_op_d], feed_dict={self.z_vector: z, self.x_vector: mris, self.learning_rate: learning_rate, self.recon_weight: recon_weight,self.is_training: True,self.labels:labels})
-          print("epoch:" + str(epoch) + "update discriminator parameters, optimize D")
+      fetch = [self.c_loss,self.d_loss,self.g_loss, self.all_preds, self.all_targets, self.accuracy, self.fake_image, self.learning_rate,self.alpha_p]
 
-      total_gan_loss.append(gan_loss_per_batch)
-      total_D_fake_loss.append(d_loss_fake_per_batch)
-      total_D_real_loss.append(d_loss_real_per_batch)
+      c_loss_per_batch, d_loss_per_batch, g_loss_per_batch, predicts_per_batch, gt_per_batch, accuracy_per_batch, fake_image_batch, lr, alpha_p= self.sess.run(fetch, feed_dict=feed_dict)
+
+      # Train the discriminator
+      self.sess.run([self.optimizer_op_d],feed_dict=feed_dict)
+      print("epoch:" + str(epoch) + "update discriminator parameters, optimize D")
+
+
+      # Train the generator
+      self.sess.run([self.optimizer_op_g],feed_dict=feed_dict)
+      print("epoch:"+str(epoch)+"update generater parameters, optimize G")
+
+      # Train the classifier
+      self.sess.run([self.optimizer_op_c],feed_dict=feed_dict)
+      print("epoch:" + str(epoch) + "update discriminator parameters, optimize C")
+
+
+      total_C_loss.append(c_loss_per_batch)
       total_D_loss.append(d_loss_per_batch)
       total_G_loss.append(g_loss_per_batch)
-      total_s_loss.append(s_loss_per_batch)
+
       total_accuracy.append(accuracy_per_batch)
 
 
 
       self.batches_step += 1
-      # self.log_loss_accuracy(
-      #     loss, accuracy, self.batches_step, prefix='per_batch',
-      #     should_print=False)
 
 
-
-
-    mean_gan_loss = np.mean(total_gan_loss)
-    mean_D_fake_loss = np.mean(total_D_fake_loss)
-    mean_D_real_loss = np.mean(total_D_real_loss)
-
+    mean_C_loss = np.mean(total_C_loss)
     mean_D_loss = np.mean(total_D_loss)
     mean_G_loss = np.mean(total_G_loss)
     mean_accuracy = np.mean(total_accuracy)
 
-    mean_s_loss = np.mean(total_s_loss)
 
-
-    return mean_s_loss, mean_accuracy,mean_G_loss, mean_D_loss,mean_D_real_loss,mean_D_fake_loss,mean_gan_loss,lr,recon_w
+    return mean_C_loss, mean_accuracy,mean_G_loss, mean_D_loss,alpha_p,learning_rate
 
   # (Updated)
   def test(self, data, batch_size):
     num_examples = data.num_examples
-
-    total_d_loss_real= []
+    total_c_loss= []
     total_accuracy= []
-
-    total_s_loss= []
 
     for i in range(num_examples // batch_size):
       batch = data.next_batch(batch_size)
       feed_dict = {
-        self.x_vector: batch[0],
+        self.labelled_inputs: batch[0],
         self.labels: batch[1],
         # self.z_vector: z,
         self.is_training: False,
       }
 
-
-      fetches = [self.d_loss_real, self.accuracy,self.S_loss,self.all_preds,self.all_targets]
-      d_loss_real_value, accuracy_value, S_loss_value,predicts,ground_truth = self.sess.run(fetches, feed_dict=feed_dict)
-
-
-      total_d_loss_real.append(d_loss_real_value)
+      fetches = [self.c_loss, self.accuracy,self.all_preds,self.all_targets]
+      c_loss_value, accuracy_value,predicts,ground_truth = self.sess.run(fetches, feed_dict=feed_dict)
+      total_c_loss.append(c_loss_value)
       total_accuracy.append(accuracy_value)
-
-      total_s_loss.append(S_loss_value)
-
-    mean_d_loss_real = np.mean(total_d_loss_real)
     mean_accuracy = np.mean(total_accuracy)
-
-
-    mean_s_loss = np.mean(total_s_loss)
-
-
-    return mean_d_loss_real,mean_accuracy,mean_s_loss
+    mean_c_loss = np.mean(total_c_loss)
+    return mean_accuracy,mean_c_loss
 
   def test_and_record(self, result_file_name, whichFoldData,config,train_dir, data,batch_size):
     evaler = EvalManager(self.train_dir)
     num_examples = data.num_examples
-    total_loss = []
     total_accuracy = []
     batch_size=1
-    # z = np.random.normal(0, 1, size=[batch_size, self.n_z]).astype(np.float32)
 
     for i in range(num_examples // batch_size):
       batch = data.next_batch(batch_size)
       feed_dict = {
-        self.x_vector: batch[0],
+        self.labelled_inputs: batch[0],
         self.labels: batch[1],
         # self.z_vector: z,
         self.is_training: False,
       }
 
-
-
-      fetches = [self.accuracy,self.all_preds,self.all_targets]
-      accuracy,prediction,ground_truth = self.sess.run(fetches, feed_dict=feed_dict)
+      fetches = [self.c_loss, self.accuracy, self.all_preds, self.all_targets]
+      c_loss_value, accuracy_value, predicts, ground_truth = self.sess.run(fetches, feed_dict=feed_dict)
 
       # total_loss.append(s_loss)
-      total_accuracy.append(accuracy)
-      evaler.add_batch_new(prediction, ground_truth,self.n_classes)
+      total_accuracy.append(accuracy_value)
+      evaler.add_batch_new(predicts, ground_truth,self.n_classes)
 
     # mean_loss = np.mean(total_loss)
     mean_accuracy = np.mean(total_accuracy)

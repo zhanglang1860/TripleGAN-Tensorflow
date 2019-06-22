@@ -51,14 +51,14 @@ def construct_train_dir(config):
     all_train_dir = []
 
     temp = config.hdf5FileNametrain.split('.')
-    hyper_parameter_all_folds = 'all8020_{}_lr_g_{}_d_{}_update_G{}D{}_batchSize{}_maxIteration{}'.format(
+    hyper_parameter_all_folds = 'all8020_{}_lr_g_{}_d_{}_num_less_label_data_{}_batchSize{}_maxIteration{}'.format(
         temp[0], config.learning_rate_g, config.learning_rate_d,
-        1, config.update_rate, config.batch_size, config.max_training_steps
+        config.num_less_label_data, config.batch_size, config.max_training_steps
     )
 
-    config.prefix = 'SSgan_depth{}_growthRate{}_reduce{}_model_type{}_keepPro{}'.format(
+    config.prefix = 'TripleGan_depth{}_growthRate{}_reduce{}_model_type{}_keepPro{}_softmaxConvert{}_d_loss_version{}'.format(
         config.depth, config.growth_rate, config.reduction,
-        config.model_type, config.keep_prob
+        config.model_type, config.keep_prob,config.softmaxConvert,config.d_loss_version
     )
 
     train_dir = './train_dir/%s-%s' % (
@@ -154,7 +154,8 @@ def main(argv=None):  # pylint: disable=unused-argument
 
     if config.train:
         total_start_time = time.time()
-        print("Data provider train images: ", data_provider.train_labelled.num_examples)
+        print("Data provider train labelled images: ", data_provider.train_labelled.num_examples)
+        print("Data provider train unlabelled images: ", data_provider.train_unlabelled.num_examples)
         model.train_all_epochs(config)
         total_training_time = time.time() - total_start_time
         # f.close()
