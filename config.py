@@ -13,7 +13,7 @@ def argparser(is_train=True):
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-    parser.add_argument('--softmaxConvert', action='store_true', default=True)
+
     parser.add_argument('--prefix', type=str, default='default')
     parser.add_argument('--train_dir', type=str)
     parser.add_argument('--eval_dir', type=str, default='./data2/3dDenseNetEvaluate')
@@ -70,14 +70,15 @@ def argparser(is_train=True):
     # log
     parser.add_argument('--log_step', type=int, default=10)
     parser.add_argument('--write_summary_step', type=int, default=100)
-    parser.add_argument('--batch_size', type=int, default=10)
+    parser.add_argument('--batch_size', type=int, default=8)
+    # parser.add_argument('--batch_size_unlabel', type=int, default=0)
     parser.add_argument('--ckpt_save_step', type=int, default=50)
     parser.add_argument('--test_sample_step', type=int, default=100)
     parser.add_argument('--output_save_step', type=int, default=50)
     # learning
     parser.add_argument('--max_sample', type=int, default=50000,
                         help='num of samples the model can see')
-    parser.add_argument('--max_training_steps', type=int, default=2)
+    parser.add_argument('--max_training_steps', type=int, default=1000)
     parser.add_argument('--reduce_lr_epoch_1', type=int, default=75)
     parser.add_argument('--reduce_lr_epoch_2', type=int, default=110)
     parser.add_argument('--queue_size', type=int, default=30)

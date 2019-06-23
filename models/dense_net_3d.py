@@ -127,10 +127,11 @@ class TripleGAN3D(object):
     # value the same as in the original Torch code
     self.first_output_features  = config.growth_rate * 2
     self.total_blocks           = config.total_blocks
-    self.softmaxConvert   = config.softmaxConvert
+
     self.d_loss_version = config.d_loss_version
     self.layers_per_block       = (config.depth - (config.total_blocks + 1)) // config.total_blocks
     self.bc_mode = config.bc_mode
+    # self.batch_size_unlabel= config.batch_size_unlabel
     # compression rate at the transition layers
     self.reduction              = config.reduction
     if not config.bc_mode:
@@ -325,9 +326,9 @@ class TripleGAN3D(object):
     C_real_unlabel_softmax, C_real_unlabel_logits = self.classifier(self.unlabelled_inputs, is_training=True, reuse=True)
 ########################################################################################
     # C_real_unlabel_softmax to one_hot label
-    if self.softmaxConvert:
-        condition = tf.less(C_real_unlabel_softmax, 0.5)
-        C_real_unlabel_softmax = tf.where(condition, C_real_unlabel_softmax * 0, C_real_unlabel_softmax * 0 + 1.0)
+
+    condition = tf.less(C_real_unlabel_softmax, 0.5)
+    C_real_unlabel_softmax = tf.where(condition, C_real_unlabel_softmax * 0, C_real_unlabel_softmax * 0 + 1.0)
 
 
 
@@ -366,7 +367,7 @@ class TripleGAN3D(object):
         d_loss_cla = self.alpha * tf.reduce_mean(
             tf.nn.sigmoid_cross_entropy_with_logits(logits=D_unlabel_classfier_logits,
                                                     labels=tf.zeros_like(D_unlabel_classfier_sigmoid)))
-        self.d_loss = d_loss_real + d_loss_fake + d_loss_cla + R_L
+        self.d_loss = d_loss_real + d_loss_fake + d_loss_cla + 0.5*R_L
     else:
         d_loss_real = tf.reduce_mean(
             tf.nn.sigmoid_cross_entropy_with_logits(logits=D_real_logits, labels=tf.ones_like(D_real)))
@@ -435,7 +436,10 @@ class TripleGAN3D(object):
     self.optimizer_op_d = tf.train.MomentumOptimizer(
       self.learning_rate, self.nesterov_momentum, use_nesterov=True).minimize(self.d_loss, var_list=para_d)
     # only update the weights for the generator network
-    self.optimizer_op_g = tf.train.AdamOptimizer(learning_rate=0.01, beta1=0.5).minimize(self.g_loss, var_list=para_g)
+    # self.optimizer_op_g = tf.train.AdamOptimizer(learning_rate=0.01, beta1=0.5).minimize(self.g_loss, var_list=para_g)
+
+    self.optimizer_op_g = tf.train.MomentumOptimizer(
+      self.learning_rate, self.nesterov_momentum, use_nesterov=True).minimize(self.g_loss, var_list=para_g)
 
     self.optimizer_op_c = tf.train.MomentumOptimizer(
       self.learning_rate, self.nesterov_momentum, use_nesterov=True).minimize(self.c_loss, var_list=para_c)
@@ -1025,10 +1029,33 @@ class TripleGAN3D(object):
         learning_rate = learning_rate / 100
         print("Decrease learning rate, new lr = %f" % learning_rate)
 
-      if epoch >= 200:
-        alpha_p = 0.6
+      # if epoch >= 90 and epoch<100:
+      #   alpha_p = 0.1
+      # elif epoch >= 100 and epoch<110:
+      #   alpha_p = 0.2
+      # elif epoch >= 110 and epoch < 120:
+      #   alpha_p = 0.3
+      # elif epoch >= 120 and epoch < 130:
+      #   alpha_p = 0.4
+      # elif epoch >= 130:
+      #   alpha_p = 0.5
+      # else:
+      #   alpha_p = 0.0
+
+      if epoch >= 90 and epoch<180:
+        alpha_p = 0.1
+      elif epoch >= 180 and epoch < 270:
+        alpha_p = 0.2
+      elif epoch >= 270 and epoch < 360:
+        alpha_p = 0.3
+      elif epoch >= 360 and epoch < 450:
+        alpha_p = 0.4
+      elif epoch >= 450:
+        alpha_p = 0.5
       else:
         alpha_p = 0.0
+
+
 
 
       print("Training...")
@@ -1038,7 +1065,9 @@ class TripleGAN3D(object):
       mean_C_loss, mean_accuracy, mean_G_loss, mean_D_loss, alpha_p, lr = self.train_one_epoch(
         self.data_provider, batch_size, learning_rate,epoch,alpha_p)
 
-      self.log_one_metric(mean_D_loss, epoch, prefix='train_C_loss')
+      self.save_model(global_step=epoch)
+
+      self.log_one_metric(mean_D_loss, epoch, prefix='train_D_loss')
       self.log_one_metric(mean_G_loss, epoch, prefix='train_G_loss')
 
       self.log_loss_accuracy(mean_C_loss, mean_accuracy, epoch, prefix='train_C')
@@ -1059,10 +1088,10 @@ class TripleGAN3D(object):
       self.summary_writer.add_summary(summary, epoch)
 
       print("Validation...")
-      mean_accuracy,mean_c_loss = self.test(
+      mean_accuracy = self.test(
         self.data_provider.test, batch_size)
 
-      self.log_loss_accuracy(mean_c_loss, mean_accuracy, epoch, prefix='test_C')
+      self.log_one_metric(mean_accuracy, epoch, prefix='test_c_accuracy')
 
       time_per_epoch = time.time() - start_time
       seconds_left = int((n_epochs - epoch) * time_per_epoch)
@@ -1156,13 +1185,13 @@ class TripleGAN3D(object):
         self.is_training: False,
       }
 
-      fetches = [self.c_loss, self.accuracy,self.all_preds,self.all_targets]
-      c_loss_value, accuracy_value,predicts,ground_truth = self.sess.run(fetches, feed_dict=feed_dict)
-      total_c_loss.append(c_loss_value)
+      fetches = [self.accuracy,self.all_preds,self.all_targets]
+      accuracy_value,predicts,ground_truth = self.sess.run(fetches, feed_dict=feed_dict)
+
       total_accuracy.append(accuracy_value)
     mean_accuracy = np.mean(total_accuracy)
-    mean_c_loss = np.mean(total_c_loss)
-    return mean_accuracy,mean_c_loss
+
+    return mean_accuracy
 
   def test_and_record(self, result_file_name, whichFoldData,config,train_dir, data,batch_size):
     evaler = EvalManager(self.train_dir)
@@ -1179,8 +1208,8 @@ class TripleGAN3D(object):
         self.is_training: False,
       }
 
-      fetches = [self.c_loss, self.accuracy, self.all_preds, self.all_targets]
-      c_loss_value, accuracy_value, predicts, ground_truth = self.sess.run(fetches, feed_dict=feed_dict)
+      fetches = [self.accuracy, self.all_preds, self.all_targets]
+      accuracy_value, predicts, ground_truth = self.sess.run(fetches, feed_dict=feed_dict)
 
       # total_loss.append(s_loss)
       total_accuracy.append(accuracy_value)
