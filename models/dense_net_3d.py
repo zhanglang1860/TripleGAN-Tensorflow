@@ -127,6 +127,7 @@ class TripleGAN3D(object):
     # value the same as in the original Torch code
     self.first_output_features  = config.growth_rate * 2
     self.total_blocks           = config.total_blocks
+    self.adam_g = config.adam_g
 
     self.d_loss_version = config.d_loss_version
     self.layers_per_block       = (config.depth - (config.total_blocks + 1)) // config.total_blocks
@@ -436,10 +437,14 @@ class TripleGAN3D(object):
     self.optimizer_op_d = tf.train.MomentumOptimizer(
       self.learning_rate, self.nesterov_momentum, use_nesterov=True).minimize(self.d_loss, var_list=para_d)
     # only update the weights for the generator network
-    # self.optimizer_op_g = tf.train.AdamOptimizer(learning_rate=0.01, beta1=0.5).minimize(self.g_loss, var_list=para_g)
 
-    self.optimizer_op_g = tf.train.MomentumOptimizer(
-      self.learning_rate, self.nesterov_momentum, use_nesterov=True).minimize(self.g_loss, var_list=para_g)
+    if self.adam_g==0:
+      self.optimizer_op_g = tf.train.MomentumOptimizer(
+        self.learning_rate, self.nesterov_momentum, use_nesterov=True).minimize(self.g_loss, var_list=para_g)
+    else:
+      self.optimizer_op_g = tf.train.AdamOptimizer(learning_rate=0.01, beta1=0.5).minimize(self.g_loss, var_list=para_g)
+
+
 
     self.optimizer_op_c = tf.train.MomentumOptimizer(
       self.learning_rate, self.nesterov_momentum, use_nesterov=True).minimize(self.c_loss, var_list=para_c)

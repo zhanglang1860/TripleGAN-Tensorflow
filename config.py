@@ -70,7 +70,7 @@ def argparser(is_train=True):
     # log
     parser.add_argument('--log_step', type=int, default=10)
     parser.add_argument('--write_summary_step', type=int, default=100)
-    parser.add_argument('--batch_size', type=int, default=8)
+    parser.add_argument('--batch_size', type=int, default=3)
     # parser.add_argument('--batch_size_unlabel', type=int, default=0)
     parser.add_argument('--ckpt_save_step', type=int, default=50)
     parser.add_argument('--test_sample_step', type=int, default=100)
@@ -98,7 +98,10 @@ def argparser(is_train=True):
         default=1,
         help='d loss unlabelled data with predicted label by classifier should be 1 or 0, add RL regularization or not,only do 1 and 3 are enough')
 
-
+    parser.add_argument(
+        '--adam_g', type=int, choices=[0, 1],
+        default=0,
+        help='g optimizer using adma or momente')
 
 
 
