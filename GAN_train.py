@@ -63,9 +63,9 @@ def construct_train_dir(config):
         config.num_less_label_data, config.batch_size, config.max_training_steps
     )
 
-    config.prefix = 'TripleGan_depth{}_growthRate{}_reduce{}_model_type{}_keepPro{}_d_loss_version{}_{}'.format(
+    config.prefix = 'TripleGan_depth{}_growthRate{}_reduce{}_model_type{}_keepPro{}_d_loss_version{}_split_dimension_core{}_tt_rank{}'.format(
         config.depth, config.growth_rate, config.reduction,
-        config.model_type, config.keep_prob,config.d_loss_version,xx
+        config.model_type, config.keep_prob,config.d_loss_version,config.split_dimension_core,config.tt_rank
     )
 
     train_dir = './train_dir/%s-%s' % (

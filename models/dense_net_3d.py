@@ -2,6 +2,12 @@ import os
 import time
 import shutil
 import platform
+from ops import conv3dtensorNet
+
+from ops import conv3d_transpose_tensor
+
+from ops import fcTensorNet
+
 from datetime import timedelta
 
 import numpy as np
@@ -127,6 +133,8 @@ class TripleGAN3D(object):
     # value the same as in the original Torch code
     self.first_output_features  = config.growth_rate * 2
     self.total_blocks           = config.total_blocks
+    self.split_dimension_core   = config.split_dimension_core
+    self.tt_rank           = config.tt_rank
     self.adam_g = config.adam_g
 
     self.d_loss_version = config.d_loss_version
@@ -276,14 +284,14 @@ class TripleGAN3D(object):
       growth_rate = self.growth_rate
       layers_per_block = self.layers_per_block
       # first - initial 3 x 3 x 3 conv to first_output_features
-
       with tf.variable_scope("Discriminator"):
         with tf.variable_scope("Initial_convolution"):
-          output = self.conv3d(
+          output = conv3dtensorNet(
             x,
             out_features=self.first_output_features,
             kernel_size=7,
-            strides=[1, 1, 2, 2, 1])
+            strides=[1, 1, 2, 2, 1], padding="SAME",name="conv3dTensorNet1", split_dimension_core=self.split_dimension_core,tt_rank=self.tt_rank)
+
           # first pooling
           output = self.pool(output, k=3, d=3, k_stride=2, d_stride=1)
 
@@ -665,8 +673,9 @@ class TripleGAN3D(object):
 
 
       # convolution
-      output = self.conv3d(
-        output, out_features=out_features, kernel_size=kernel_size)
+      output = conv3dtensorNet(
+        output, out_features=out_features, kernel_size=kernel_size,name="conv3dTensorNet",
+        split_dimension_core=self.split_dimension_core, tt_rank=self.tt_rank)
         # dropout(in case of training and in case it is no 1.0)
       output = self.dropout(output)
     return output
@@ -686,9 +695,12 @@ class TripleGAN3D(object):
         output = conv_concat(output, add_y)
 
 
-      output = self.conv3d(
-        output, out_features=inter_features, kernel_size=1,
-        padding='VALID')
+
+      output = conv3dtensorNet(output, out_features=inter_features, kernel_size=1,
+        padding='VALID', name="conv3dTensorNet",
+        split_dimension_core=self.split_dimension_core, tt_rank=self.tt_rank)
+
+
       output = self.dropout(output)
     return output
 
@@ -765,10 +777,16 @@ class TripleGAN3D(object):
     # FC
     features_total = int(output.get_shape()[-1])
     output = tf.reshape(output, [-1, features_total])
-    W = self.weight_variable_xavier(
-      [features_total, 1], name='W')
-    bias = self.bias_variable([1])
-    logits = tf.matmul(output, W) + bias
+    # W = self.weight_variable_xavier(
+    #   [features_total, 1], name='W')
+    # bias = self.bias_variable([1])
+    # logits = tf.matmul(output, W) + bias
+
+    logits = fcTensorNet(output, 1, self.is_training, info=False, norm='None', name='tensor_fc',
+                    split_dimension_core=self.split_dimension_core, tt_rank=self.tt_rank)
+
+
+
     # Local
     # features_total = int(output.get_shape()[-1])
     # output = tf.reshape(output, [-1, features_total])
@@ -817,10 +835,17 @@ class TripleGAN3D(object):
     # FC
     features_total = int(output.get_shape()[-1])
     output = tf.reshape(output, [-1, features_total])
-    W = self.weight_variable_xavier(
-      [features_total, self.n_classes], name='W')
-    bias = self.bias_variable([self.n_classes])
-    logits = tf.matmul(output, W) + bias
+    # W = self.weight_variable_xavier(
+    #   [features_total, self.n_classes], name='W')
+    # bias = self.bias_variable([self.n_classes])
+    # logits = tf.matmul(output, W) + bias
+
+    logits = fcTensorNet(output, self.n_classes, self.is_training, info=False, norm='None', name='tensor_fc',
+                    split_dimension_core=self.split_dimension_core, tt_rank=self.tt_rank)
+
+
+
+
     # Local
     # features_total = int(output.get_shape()[-1])
     # output = tf.reshape(output, [-1, features_total])
@@ -917,7 +942,12 @@ class TripleGAN3D(object):
       batch_size=self.batch_size
       with tf.variable_scope("Generator",reuse=reuse):
           x = tf.concat([z, y], axis=1)
-          x = tf.layers.dense(inputs=x, units=4*3*3*512, kernel_initializer=tf.contrib.layers.variance_scaling_initializer())
+
+          x = fcTensorNet(x, 4*3*3*512, self.is_training, info=False, norm='None', name='tensor_fc',
+                               split_dimension_core=self.split_dimension_core, tt_rank=self.tt_rank)
+
+
+
           x = tf.nn.relu(x)
           x = tf.contrib.layers.batch_norm(x, is_training=phase_train)
 
@@ -932,27 +962,29 @@ class TripleGAN3D(object):
           # g_1 = tf.contrib.layers.batch_norm(g_1, is_training=phase_train)
           # g_1 = tf.nn.relu(g_1)
 
-          g_2 = tf.nn.conv3d_transpose(x, weights['wg2'], (batch_size, 7, 6, 6, 256), strides=strides, padding="SAME")
+
+
+          g_2 = conv3d_transpose_tensor(x, weights['wg2'], (batch_size, 7, 6, 6, 256), strides, padding="SAME",name="conv3d_transpose_TensorNet1", split_dimension_core=self.split_dimension_core,tt_rank=self.tt_rank)
           g_2 = tf.contrib.layers.batch_norm(g_2, is_training=phase_train)
           g_2 = tf.nn.relu(g_2)
           g_2 = conv_concat(g_2, y)
 
-          g_3 = tf.nn.conv3d_transpose(g_2, weights['wg3'], (batch_size, 14, 12, 12, 128), strides=strides, padding="SAME")
+          g_3 = conv3d_transpose_tensor(g_2, weights['wg3'], (batch_size, 14, 12, 12, 128), strides, padding="SAME",name="conv3d_transpose_TensorNet2", split_dimension_core=self.split_dimension_core,tt_rank=self.tt_rank)
           g_3 = tf.contrib.layers.batch_norm(g_3, is_training=phase_train)
           g_3 = tf.nn.relu(g_3)
           g_3 = conv_concat(g_3, y)
 
-          g_4 = tf.nn.conv3d_transpose(g_3, weights['wg4'], (batch_size, 28, 23, 23, 64), strides=strides, padding="SAME")
+          g_4 = conv3d_transpose_tensor(g_3, weights['wg4'], (batch_size, 28, 23, 23, 64), strides, padding="SAME",name="conv3d_transpose_TensorNet3", split_dimension_core=self.split_dimension_core,tt_rank=self.tt_rank)
           g_4 = tf.contrib.layers.batch_norm(g_4, is_training=phase_train)
           g_4 = tf.nn.relu(g_4)
           g_4 = conv_concat(g_4, y)
 
-          g_5 = tf.nn.conv3d_transpose(g_4, weights['wg5'], (batch_size, 55, 46, 46, 32), strides=strides, padding="SAME")
+          g_5 = conv3d_transpose_tensor(g_4, weights['wg5'], (batch_size, 55, 46, 46, 32), strides, padding="SAME",name="conv3d_transpose_TensorNet4", split_dimension_core=self.split_dimension_core,tt_rank=self.tt_rank)
           g_5 = tf.contrib.layers.batch_norm(g_5, is_training=phase_train)
           g_5 = tf.nn.relu(g_5)
           g_5 = conv_concat(g_5, y)
 
-          g_6 = tf.nn.conv3d_transpose(g_5, weights['wg6'], (batch_size, 109, 91, 91, 1), strides=strides, padding="SAME")
+          g_6 = conv3d_transpose_tensor(g_5, weights['wg6'], (batch_size, 109, 91, 91, 1), strides, padding="SAME",name="conv3d_transpose_TensorNet5", split_dimension_core=self.split_dimension_core,tt_rank=self.tt_rank)
 
           g_6 = tf.nn.tanh(g_6)
 
@@ -976,11 +1008,15 @@ class TripleGAN3D(object):
 
     with tf.variable_scope("Classfier", reuse=reuse):
       with tf.variable_scope("Initial_convolution"):
-        output = self.conv3d(
+
+        output = conv3dtensorNet(
           mri,
           out_features=self.first_output_features,
           kernel_size=7,
-          strides=[1, 1, 2, 2, 1])
+          strides=[1, 1, 2, 2, 1], padding="SAME", name="conv3dTensorNet",
+          split_dimension_core=self.split_dimension_core, tt_rank=self.tt_rank)
+
+
         # first pooling
         output = self.pool(output, k=3, d=3, k_stride=2, d_stride=1)
 

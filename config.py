@@ -78,16 +78,16 @@ def argparser(is_train=True):
     # learning
     parser.add_argument('--max_sample', type=int, default=50000,
                         help='num of samples the model can see')
-    parser.add_argument('--max_training_steps', type=int, default=1000)
+    parser.add_argument('--max_training_steps', type=int, default=2)
     parser.add_argument('--reduce_lr_epoch_1', type=int, default=75)
     parser.add_argument('--reduce_lr_epoch_2', type=int, default=110)
-    parser.add_argument('--queue_size', type=int, default=30)
+    parser.add_argument('--queue_size', type=int, default=10)
     parser.add_argument('--learning_rate_g', type=float, default=0.0025)
     parser.add_argument('--learning_rate_d', type=float, default=0.01)
     parser.add_argument('--labeled_rate', type=float, default=1.0)
 
-    parser.add_argument('--update_rate', type=int, default=2)
-    parser.add_argument('--num_gpus', type=int, default=2)
+    parser.add_argument('--split_dimension_core', type=int, default=6)
+    parser.add_argument('--tt_rank', type=int, default=6)
     parser.add_argument(
         '--num_less_label_data', type=int, choices=[0, 18, 36, 72, 144, 288],
         default=0,

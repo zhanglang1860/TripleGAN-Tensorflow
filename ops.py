@@ -5,6 +5,8 @@ import numpy as np
 from util import log
 from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import array_ops
+import tensornet
+
 import re
 TOWER_NAME = 'tower'
 
@@ -507,3 +509,4093 @@ def conv_concat(x, y):
     add_label_with_y= y *add_label
 
     return tf.concat([x, add_label_with_y], axis=4)
+
+
+def conv3dtensorNet(input, out_features=1,kernel_size=3, strides=[1, 1, 1, 1, 1], padding="SAME",
+                    name="conv3dTensorNet", split_dimension_core=10,tt_rank=20):
+    with tf.variable_scope(name):
+
+        out_mode = split_dimension_to_rank_multiple(out_features, split_dimension_core)
+        in_features = int(input.get_shape()[-1])
+        input_mode = split_dimension_to_rank_multiple(in_features, split_dimension_core)
+
+        tt_rank_array = np.array([1], dtype=np.int32)
+        for ix in range(split_dimension_core):
+            if ix == split_dimension_core - 1:
+                tt_rank_array = np.append(tt_rank_array, [1])
+            else:
+                tt_rank_array = np.append(tt_rank_array, [tt_rank])
+
+
+
+
+        _ = tensornet.layers.tt_conv_full_3d(input, [kernel_size, kernel_size,kernel_size], input_mode, out_mode,
+                                          tt_rank_array,
+                                          strides, scope=name)
+
+
+    return _
+
+
+
+def conv3d_transpose_tensor(input, filter_weights,output_shape, strides, padding="SAME",
+                    name="conv3d_transpose_TensorNet", split_dimension_core=10,tt_rank=20):
+    with tf.variable_scope(name):
+        out_features = int(filter_weights.get_shape()[4])
+
+        out_mode = split_dimension_to_rank_multiple(out_features, split_dimension_core)
+        in_features = int(filter_weights.get_shape()[3])
+        input_mode = split_dimension_to_rank_multiple(in_features, split_dimension_core)
+
+        tt_rank_array = np.array([1], dtype=np.int32)
+        for ix in range(split_dimension_core):
+            if ix == split_dimension_core - 1:
+                tt_rank_array = np.append(tt_rank_array, [1])
+            else:
+                tt_rank_array = np.append(tt_rank_array, [tt_rank])
+
+
+
+
+        _ = tensornet.layers.tt_conv_transpose_3d(input, [int(filter_weights.get_shape()[0]), int(filter_weights.get_shape()[1]),int(filter_weights.get_shape()[2])], input_mode, out_mode,
+                                          tt_rank_array,output_shape,
+                                          strides=strides, padding=padding, scope=name)
+
+
+    return _
+
+
+
+def fcTensorNet(input, output_shape, is_train, info=False, norm='batch',
+       activation_fn=lrelu, name="fcTensorNet", split_dimension_core=10,tt_rank=50):
+    with tf.variable_scope(name):
+        inp_shape = input.get_shape().as_list()[0]
+        inp = tf.reshape(input, [inp_shape, -1])
+        inp_shape_split = inp.get_shape().as_list()[1]
+        input_mode=split_dimension_to_rank_multiple(inp_shape_split,split_dimension_core)
+        out_mode = split_dimension_to_rank_multiple(output_shape, split_dimension_core)
+        tt_rank_array = np.array([1], dtype=np.int32)
+        for ix in range(split_dimension_core):
+            if ix==split_dimension_core-1:
+                tt_rank_array =np.append(tt_rank_array, [1])
+            else:
+                tt_rank_array = np.append(tt_rank_array, [tt_rank])
+
+
+        _ = tensornet.layers.tt(inp, input_mode, out_mode,  tt_rank_array,scope=name)
+
+        # result=tf.reshape(_, [inp_shape, 1, 1, -1])
+        result = _
+    return result
+
+
+def split_dimension_to_rank_multiple(inp_shape,split_dimension_core):
+
+    if split_dimension_core==3:
+        if inp_shape == 4:
+            out = np.array([2, 2, 1])
+        else:
+            if inp_shape == 12:
+                out = np.array([2, 2, 3])
+            else:
+                if inp_shape == 24:
+                    out = np.array([2, 4, 3])
+                else:
+                    if inp_shape == 27:
+                        out = np.array([3, 3, 3])
+                    else:
+                        if inp_shape == 36:
+                            out = np.array([3, 3, 4])
+                        else:
+                            if inp_shape == 39:
+                                out = np.array([3, 13,1])
+                            else:
+                                if inp_shape == 42:
+                                    out = np.array([2, 3,7])
+                                else:
+                                    if inp_shape == 45:
+                                        out = np.array([5, 3, 3])
+                                    else:
+                                        if inp_shape == 48:
+                                            out = np.array([4, 3, 4])
+                                        else:
+                                            if inp_shape == 51:
+                                                out = np.array([3, 17, 1])
+                                            else:
+                                                if inp_shape == 72:
+                                                    out = np.array([4, 6, 3])
+                                                else:
+                                                    if inp_shape == 75:
+                                                        out = np.array([3, 5, 5])
+                                                    else:
+                                                        if inp_shape == 84:
+                                                            out = np.array([4, 3, 7])
+                                                        else:
+                                                            if inp_shape == 87:
+                                                                out = np.array([3, 29, 1])
+                                                            else:
+                                                                if inp_shape == 3:
+                                                                    out = np.array([3, 1, 1])
+                                                                else:
+                                                                    if inp_shape == 26:
+                                                                        out = np.array([2, 13, 1])
+                                                                    else:
+                                                                        if inp_shape == 50:
+                                                                            out = np.array([2, 5, 5])
+                                                                        else:
+                                                                            if inp_shape == 38:
+                                                                                out = np.array([2, 19, 1])
+                                                                            else:
+                                                                                if inp_shape == 60:
+                                                                                    out = np.array([5, 4, 3])
+                                                                                else:
+                                                                                    if inp_shape == 62:
+                                                                                        out = np.array([2, 31, 1])
+                                                                                    else:
+                                                                                        if inp_shape == 74:
+                                                                                            out = np.array([2, 37, 1])
+                                                                                        else:
+                                                                                            if inp_shape == 86:
+                                                                                                out = np.array(
+                                                                                                    [2, 43, 1])
+                                                                                            else:
+                                                                                                if inp_shape == 38:
+                                                                                                    out = np.array(
+                                                                                                        [2, 19, 1])
+                                                                                                else:
+                                                                                                    if inp_shape == 44:
+                                                                                                        out = np.array(
+                                                                                                            [2, 2, 11])
+                                                                                                    else:
+                                                                                                        if inp_shape == 56:
+                                                                                                            out = np.array(
+                                                                                                                [2, 2,
+                                                                                                                 14])
+                                                                                                        else:
+                                                                                                            if inp_shape == 68:
+                                                                                                                out = np.array(
+                                                                                                                    [2,
+                                                                                                                     17,
+                                                                                                                     2])
+                                                                                                            else:
+                                                                                                                if inp_shape == 80:
+                                                                                                                    out = np.array(
+                                                                                                                        [
+                                                                                                                            8,
+                                                                                                                            5,
+                                                                                                                            2])
+                                                                                                                else:
+                                                                                                                    if inp_shape == 92:
+                                                                                                                        out = np.array(
+                                                                                                                            [
+                                                                                                                                2,
+                                                                                                                                23,
+                                                                                                                                2])
+                                                                                                                    else:
+                                                                                                                        if inp_shape == 1:
+                                                                                                                            out = np.array(
+                                                                                                                                [
+                                                                                                                                    1,
+                                                                                                                                    1,
+                                                                                                                                    1])
+                                                                                                                        else:
+                                                                                                                            if inp_shape == 130:
+                                                                                                                                out = np.array(
+                                                                                                                                    [
+                                                                                                                                        2,
+                                                                                                                                        13,
+                                                                                                                                        5])
+                                                                                                                            else:
+                                                                                                                                if inp_shape == 18432:
+                                                                                                                                    out = np.array(
+                                                                                                                                        [
+                                                                                                                                            12,
+                                                                                                                                            32,
+                                                                                                                                            48])
+                                                                                                                                else:
+                                                                                                                                    if inp_shape == 256:
+                                                                                                                                        out = np.array(
+                                                                                                                                            [
+                                                                                                                                                4,
+                                                                                                                                                8,
+                                                                                                                                                8])
+                                                                                                                                    else:
+                                                                                                                                        if inp_shape == 514:
+                                                                                                                                            out = np.array(
+                                                                                                                                                [
+                                                                                                                                                    2,
+                                                                                                                                                    257,
+                                                                                                                                                    1])
+                                                                                                                                        else:
+                                                                                                                                            if inp_shape == 32:
+                                                                                                                                                out = np.array(
+                                                                                                                                                    [
+                                                                                                                                                        4,
+                                                                                                                                                        4,
+                                                                                                                                                        2])
+                                                                                                                                            else:
+                                                                                                                                                if inp_shape == 64:
+                                                                                                                                                    out = np.array(
+                                                                                                                                                        [
+                                                                                                                                                            4,
+                                                                                                                                                            4,
+                                                                                                                                                            4])
+                                                                                                                                                else:
+                                                                                                                                                    if inp_shape == 128:
+                                                                                                                                                        out = np.array(
+                                                                                                                                                            [
+                                                                                                                                                                4,
+                                                                                                                                                                8,
+                                                                                                                                                                4])
+                                                                                                                                                    else:
+                                                                                                                                                        if inp_shape == 512:
+                                                                                                                                                            out = np.array(
+                                                                                                                                                                [
+                                                                                                                                                                    8,
+                                                                                                                                                                    8,
+                                                                                                                                                                    8])
+                                                                                                                                                        else:
+                                                                                                                                                            if inp_shape == 34:
+                                                                                                                                                                out = np.array(
+                                                                                                                                                                    [
+                                                                                                                                                                        2,
+                                                                                                                                                                        17,
+                                                                                                                                                                        1])
+                                                                                                                                                            else:
+                                                                                                                                                                if inp_shape == 35:
+                                                                                                                                                                    out = np.array(
+                                                                                                                                                                        [
+                                                                                                                                                                            5,
+                                                                                                                                                                            7,
+                                                                                                                                                                            1])
+                                                                                                                                                                else:
+                                                                                                                                                                    if inp_shape == 66:
+                                                                                                                                                                        out = np.array(
+                                                                                                                                                                            [
+                                                                                                                                                                                3,
+                                                                                                                                                                                11,
+                                                                                                                                                                                2])
+                                                                                                                                                                    else:
+                                                                                                                                                                        if inp_shape == 67:
+                                                                                                                                                                            out = np.array(
+                                                                                                                                                                                [
+                                                                                                                                                                                    1,
+                                                                                                                                                                                    67,
+                                                                                                                                                                                    1])
+                                                                                                                                                                        else:
+                                                                                                                                                                            if inp_shape == 131:
+                                                                                                                                                                                out = np.array(
+                                                                                                                                                                                    [
+                                                                                                                                                                                        1,
+                                                                                                                                                                                        131,
+                                                                                                                                                                                        1])
+                                                                                                                                                                            else:
+                                                                                                                                                                                if inp_shape == 258:
+                                                                                                                                                                                    out = np.array(
+                                                                                                                                                                                        [
+                                                                                                                                                                                            2,
+                                                                                                                                                                                            43,
+                                                                                                                                                                                            3])
+                                                                                                                                                                                else:
+                                                                                                                                                                                    if inp_shape == 259:
+                                                                                                                                                                                        out = np.array(
+                                                                                                                                                                                            [
+                                                                                                                                                                                                1,
+                                                                                                                                                                                                259,
+                                                                                                                                                                                                1])
+                                                                                                                                                                                    else:
+                                                                                                                                                                                        if inp_shape == 515:
+                                                                                                                                                                                            out = np.array(
+                                                                                                                                                                                                [
+                                                                                                                                                                                                    5,
+                                                                                                                                                                                                    103,
+                                                                                                                                                                                                    1])
+                                                                                                                                                                                        else:
+                                                                                                                                                                                            if inp_shape == 54:
+                                                                                                                                                                                                out = np.array(
+                                                                                                                                                                                                    [
+                                                                                                                                                                                                        6,
+                                                                                                                                                                                                        3,
+                                                                                                                                                                                                        3])
+                                                                                                                                                                                            else:
+                                                                                                                                                                                                if inp_shape == 78:
+                                                                                                                                                                                                    out = np.array(
+                                                                                                                                                                                                        [
+                                                                                                                                                                                                            2,
+                                                                                                                                                                                                            3,
+                                                                                                                                                                                                            13])
+                                                                                                                                                                                                else:
+                                                                                                                                                                                                    if inp_shape == 90:
+                                                                                                                                                                                                        out = np.array(
+                                                                                                                                                                                                            [
+                                                                                                                                                                                                                2,
+                                                                                                                                                                                                                9,
+                                                                                                                                                                                                                5])
+                                                                                                                                                                                                    else:
+                                                                                                                                                                                                        if inp_shape == 2:
+                                                                                                                                                                                                            out = np.array(
+                                                                                                                                                                                                                [
+                                                                                                                                                                                                                    2,
+                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                    1])
+                                                                                                                                                                                                        else:
+                                                                                                                                                                                                            if inp_shape == 63:
+                                                                                                                                                                                                                out = np.array(
+                                                                                                                                                                                                                    [
+                                                                                                                                                                                                                        3,
+                                                                                                                                                                                                                        7,
+                                                                                                                                                                                                                        3])
+                                                                                                                                                                                                            else:
+                                                                                                                                                                                                                if inp_shape == 57:
+                                                                                                                                                                                                                    out = np.array(
+                                                                                                                                                                                                                        [
+                                                                                                                                                                                                                            3,
+                                                                                                                                                                                                                            19,
+                                                                                                                                                                                                                            1])
+                                                                                                                                                                                                                else:
+                                                                                                                                                                                                                    if inp_shape == 69:
+                                                                                                                                                                                                                        out = np.array(
+                                                                                                                                                                                                                            [
+                                                                                                                                                                                                                                3,
+                                                                                                                                                                                                                                23,
+                                                                                                                                                                                                                                1])
+                                                                                                                                                                                                                    else:
+                                                                                                                                                                                                                        if inp_shape == 81:
+                                                                                                                                                                                                                            out = np.array(
+                                                                                                                                                                                                                                [
+                                                                                                                                                                                                                                    3,
+                                                                                                                                                                                                                                    9,
+                                                                                                                                                                                                                                    3])
+                                                                                                                                                                                                                        else:
+                                                                                                                                                                                                                            if inp_shape == 93:
+                                                                                                                                                                                                                                out = np.array(
+                                                                                                                                                                                                                                    [
+                                                                                                                                                                                                                                        3,
+                                                                                                                                                                                                                                        31,
+                                                                                                                                                                                                                                        1])
+
+    else:
+        if split_dimension_core==4:
+            if inp_shape==1048576:
+                out = np.array([32, 32, 32, 32])
+            else:
+                if inp_shape==524288:
+                    out = np.array([32, 32, 16, 32])
+                else:
+                    if inp_shape == 262144:
+                        out = np.array([32, 16, 16, 32])
+                    else:
+                        if inp_shape == 131072:
+                            out = np.array([16, 16, 16, 32])
+                        else:
+                            if inp_shape == 65536:
+                                out = np.array([16, 16, 16, 16])
+                            else:
+                                if inp_shape == 32768:
+                                    out = np.array([16, 16, 8, 16])
+                                else:
+                                    if inp_shape == 16384:
+                                        out = np.array([16, 8, 8, 16])
+                                    else:
+                                        if inp_shape == 8192:
+                                            out = np.array([8, 8, 8, 16])
+                                        else:
+                                            if inp_shape == 4096:
+                                                out = np.array([8, 8, 8, 8])
+                                            else:
+                                                if inp_shape == 2048:
+                                                    out = np.array([8, 4, 8, 8])
+                                                else:
+                                                    if inp_shape == 1024:
+                                                        out = np.array([8, 4, 4, 8])
+                                                    else:
+                                                        if inp_shape == 512:
+                                                            out = np.array([8, 4, 4, 4])
+                                                        else:
+                                                            if inp_shape == 256:
+                                                                out = np.array([4, 4, 4, 4])
+                                                            else:
+                                                                if inp_shape == 128:
+                                                                    out = np.array([4, 2, 4, 4])
+                                                                else:
+                                                                    if inp_shape == 64:
+                                                                        out = np.array([4, 2, 2, 4])
+                                                                    else:
+                                                                        if inp_shape == 32:
+                                                                            out = np.array([2, 2, 2, 4])
+                                                                        else:
+                                                                            if inp_shape == 16:
+                                                                                out = np.array([2, 2, 2, 2])
+                                                                            else:
+                                                                                if inp_shape == 8:
+                                                                                    out = np.array([2, 2, 1, 2])
+                                                                                else:
+                                                                                    if inp_shape == 4:
+                                                                                        out = np.array([2, 1, 1,2])
+                                                                                    else:
+                                                                                        if inp_shape == 91:
+                                                                                            out = np.array([91, 1, 1,1])
+                                                                                        else:
+                                                                                            if inp_shape == 109:
+                                                                                                out = np.array([109, 1, 1,1])
+                                                                                            else:
+                                                                                                if inp_shape == 12:
+                                                                                                    out = np.array([2, 2, 3,1])
+                                                                                                else:
+                                                                                                    if inp_shape == 24:
+                                                                                                        out = np.array([2, 2,2,3])
+                                                                                                    else:
+                                                                                                        if inp_shape == 27:
+                                                                                                            out = np.array([3,3,3,1])
+                                                                                                        else:
+                                                                                                            if inp_shape == 36:
+                                                                                                                out = np.array([3,3,2,2])
+                                                                                                            else:
+                                                                                                                if inp_shape == 39:
+                                                                                                                    out = np.array([3,13,1,1])
+                                                                                                                else:
+                                                                                                                    if inp_shape == 42:
+                                                                                                                        out = np.array([2,3,7,1])
+                                                                                                                    else:
+                                                                                                                        if inp_shape == 45:
+                                                                                                                            out = np.array([5,3,3,1])
+                                                                                                                        else:
+                                                                                                                            if inp_shape == 48:
+                                                                                                                                out = np.array([4,3,2,2])
+                                                                                                                            else:
+                                                                                                                                if inp_shape == 51:
+                                                                                                                                    out = np.array([3,17,1,1])
+                                                                                                                                else:
+                                                                                                                                    if inp_shape == 72:
+                                                                                                                                        out = np.array([4,3,2,3])
+                                                                                                                                    else:
+                                                                                                                                        if inp_shape == 75:
+                                                                                                                                            out = np.array([3,5,5,1])
+                                                                                                                                        else:
+                                                                                                                                            if inp_shape == 84:
+                                                                                                                                                out = np.array([2,2,3,7])
+                                                                                                                                            else:
+                                                                                                                                                if inp_shape == 87:
+                                                                                                                                                    out = np.array([3,29,1,1])
+                                                                                                                                                else:
+                                                                                                                                                    if inp_shape == 3:
+                                                                                                                                                        out = np.array(
+                                                                                                                                                            [
+                                                                                                                                                                3,
+                                                                                                                                                                1,
+                                                                                                                                                                1,1])
+                                                                                                                                                    else:
+                                                                                                                                                        if inp_shape == 26:
+                                                                                                                                                            out = np.array(
+                                                                                                                                                                [
+                                                                                                                                                                    1,2,
+                                                                                                                                                                    13,
+                                                                                                                                                                    1])
+                                                                                                                                                        else:
+                                                                                                                                                            if inp_shape == 50:
+                                                                                                                                                                out = np.array(
+                                                                                                                                                                    [
+                                                                                                                                                                        1,2,
+                                                                                                                                                                        5,
+                                                                                                                                                                        5])
+                                                                                                                                                            else:
+                                                                                                                                                                if inp_shape == 38:
+                                                                                                                                                                    out = np.array(
+                                                                                                                                                                        [
+                                                                                                                                                                            1,2,
+                                                                                                                                                                            19,
+                                                                                                                                                                            1])
+                                                                                                                                                                else:
+                                                                                                                                                                    if inp_shape == 60:
+                                                                                                                                                                        out = np.array(
+                                                                                                                                                                            [
+                                                                                                                                                                                5,
+                                                                                                                                                                                2,2,
+                                                                                                                                                                                3])
+                                                                                                                                                                    else:
+                                                                                                                                                                        if inp_shape == 62:
+                                                                                                                                                                            out = np.array(
+                                                                                                                                                                                [
+                                                                                                                                                                                    1,2,
+                                                                                                                                                                                    31,
+                                                                                                                                                                                    1])
+                                                                                                                                                                        else:
+                                                                                                                                                                            if inp_shape == 74:
+                                                                                                                                                                                out = np.array(
+                                                                                                                                                                                    [
+                                                                                                                                                                                        2,
+                                                                                                                                                                                        37,1,
+                                                                                                                                                                                        1])
+                                                                                                                                                                            else:
+                                                                                                                                                                                if inp_shape == 86:
+                                                                                                                                                                                    out = np.array(
+                                                                                                                                                                                        [
+                                                                                                                                                                                            1,2,
+                                                                                                                                                                                            43,
+                                                                                                                                                                                            1])
+                                                                                                                                                                                else:
+                                                                                                                                                                                    if inp_shape == 38:
+                                                                                                                                                                                        out = np.array(
+                                                                                                                                                                                            [
+                                                                                                                                                                                                1,2,
+                                                                                                                                                                                                19,
+                                                                                                                                                                                                1])
+                                                                                                                                                                                    else:
+                                                                                                                                                                                        if inp_shape == 44:
+                                                                                                                                                                                            out = np.array(
+                                                                                                                                                                                                [
+                                                                                                                                                                                                    1,2,
+                                                                                                                                                                                                    2,
+                                                                                                                                                                                                    11])
+                                                                                                                                                                                        else:
+                                                                                                                                                                                            if inp_shape == 56:
+                                                                                                                                                                                                out = np.array(
+                                                                                                                                                                                                    [
+                                                                                                                                                                                                        2,
+                                                                                                                                                                                                        2,
+                                                                                                                                                                                                        7,2])
+                                                                                                                                                                                            else:
+                                                                                                                                                                                                if inp_shape == 68:
+                                                                                                                                                                                                    out = np.array(
+                                                                                                                                                                                                        [
+                                                                                                                                                                                                            1,2,
+                                                                                                                                                                                                            17,
+                                                                                                                                                                                                            2])
+                                                                                                                                                                                                else:
+                                                                                                                                                                                                    if inp_shape == 80:
+                                                                                                                                                                                                        out = np.array(
+                                                                                                                                                                                                            [
+                                                                                                                                                                                                                2,4,
+                                                                                                                                                                                                                5,
+                                                                                                                                                                                                                2])
+                                                                                                                                                                                                    else:
+                                                                                                                                                                                                        if inp_shape == 92:
+                                                                                                                                                                                                            out = np.array(
+                                                                                                                                                                                                                [
+                                                                                                                                                                                                                    1,2,
+                                                                                                                                                                                                                    23,
+                                                                                                                                                                                                                    2])
+                                                                                                                                                                                                        else:
+                                                                                                                                                                                                            if inp_shape == 1:
+                                                                                                                                                                                                                out = np.array(
+                                                                                                                                                                                                                    [
+                                                                                                                                                                                                                        1,1,
+                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                        1])
+                                                                                                                                                                                                            else:
+                                                                                                                                                                                                                if inp_shape == 130:
+                                                                                                                                                                                                                    out = np.array(
+                                                                                                                                                                                                                        [
+                                                                                                                                                                                                                            1,2,
+                                                                                                                                                                                                                            13,
+                                                                                                                                                                                                                            5])
+                                                                                                                                                                                                                else:
+                                                                                                                                                                                                                    if inp_shape == 18432:
+                                                                                                                                                                                                                        out = np.array(
+                                                                                                                                                                                                                            [
+                                                                                                                                                                                                                                12,
+                                                                                                                                                                                                                                32,4,12
+                                                                                                                                                                                                                                ])
+                                                                                                                                                                                                                    else:
+                                                                                                                                                                                                                        if inp_shape == 514:
+                                                                                                                                                                                                                            out = np.array(
+                                                                                                                                                                                                                                [
+                                                                                                                                                                                                                                    1,2,
+                                                                                                                                                                                                                                    257,
+                                                                                                                                                                                                                                    1])
+                                                                                                                                                                                                                        else:
+                                                                                                                                                                                                                            if inp_shape == 34:
+                                                                                                                                                                                                                                out = np.array(
+                                                                                                                                                                                                                                    [
+                                                                                                                                                                                                                                        1,2,
+                                                                                                                                                                                                                                        17,
+                                                                                                                                                                                                                                        1])
+                                                                                                                                                                                                                            else:
+                                                                                                                                                                                                                                if inp_shape == 35:
+                                                                                                                                                                                                                                    out = np.array(
+                                                                                                                                                                                                                                        [
+                                                                                                                                                                                                                                            5,1,
+                                                                                                                                                                                                                                            7,
+                                                                                                                                                                                                                                            1])
+                                                                                                                                                                                                                                else:
+                                                                                                                                                                                                                                    if inp_shape == 66:
+                                                                                                                                                                                                                                        out = np.array(
+                                                                                                                                                                                                                                            [
+                                                                                                                                                                                                                                                1,3,
+                                                                                                                                                                                                                                                11,
+                                                                                                                                                                                                                                                2])
+                                                                                                                                                                                                                                    else:
+                                                                                                                                                                                                                                        if inp_shape == 67:
+                                                                                                                                                                                                                                            out = np.array(
+                                                                                                                                                                                                                                                [
+                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                    67,1,
+                                                                                                                                                                                                                                                    1])
+                                                                                                                                                                                                                                        else:
+                                                                                                                                                                                                                                            if inp_shape == 131:
+                                                                                                                                                                                                                                                out = np.array(
+                                                                                                                                                                                                                                                    [
+                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                        131,1,
+                                                                                                                                                                                                                                                        1])
+                                                                                                                                                                                                                                            else:
+                                                                                                                                                                                                                                                if inp_shape == 258:
+                                                                                                                                                                                                                                                    out = np.array(
+                                                                                                                                                                                                                                                        [
+                                                                                                                                                                                                                                                            2,
+                                                                                                                                                                                                                                                            43,1,
+                                                                                                                                                                                                                                                            3])
+                                                                                                                                                                                                                                                else:
+                                                                                                                                                                                                                                                    if inp_shape == 259:
+                                                                                                                                                                                                                                                        out = np.array(
+                                                                                                                                                                                                                                                            [
+                                                                                                                                                                                                                                                                1,1,
+                                                                                                                                                                                                                                                                259,
+                                                                                                                                                                                                                                                                1])
+                                                                                                                                                                                                                                                    else:
+                                                                                                                                                                                                                                                        if inp_shape == 515:
+                                                                                                                                                                                                                                                            out = np.array(
+                                                                                                                                                                                                                                                                [
+                                                                                                                                                                                                                                                                    1,5,
+                                                                                                                                                                                                                                                                    103,
+                                                                                                                                                                                                                                                                    1])
+                                                                                                                                                                                                                                                        else:
+                                                                                                                                                                                                                                                            if inp_shape == 54:
+                                                                                                                                                                                                                                                                out = np.array(
+                                                                                                                                                                                                                                                                    [
+                                                                                                                                                                                                                                                                        3,2,
+                                                                                                                                                                                                                                                                        3,
+                                                                                                                                                                                                                                                                        3])
+                                                                                                                                                                                                                                                            else:
+                                                                                                                                                                                                                                                                if inp_shape == 78:
+                                                                                                                                                                                                                                                                    out = np.array(
+                                                                                                                                                                                                                                                                        [
+                                                                                                                                                                                                                                                                            2,1,
+                                                                                                                                                                                                                                                                            3,
+                                                                                                                                                                                                                                                                            13])
+                                                                                                                                                                                                                                                                else:
+                                                                                                                                                                                                                                                                    if inp_shape == 90:
+                                                                                                                                                                                                                                                                        out = np.array(
+                                                                                                                                                                                                                                                                            [
+                                                                                                                                                                                                                                                                                2,
+                                                                                                                                                                                                                                                                                3,3,
+                                                                                                                                                                                                                                                                                5])
+                                                                                                                                                                                                                                                                    else:
+                                                                                                                                                                                                                                                                        if inp_shape == 2:
+                                                                                                                                                                                                                                                                            out = np.array(
+                                                                                                                                                                                                                                                                                [
+                                                                                                                                                                                                                                                                                    2,1,
+                                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                                    1])
+                                                                                                                                                                                                                                                                        else:
+                                                                                                                                                                                                                                                                            if inp_shape == 63:
+                                                                                                                                                                                                                                                                                out = np.array(
+                                                                                                                                                                                                                                                                                    [
+                                                                                                                                                                                                                                                                                        3,
+                                                                                                                                                                                                                                                                                        7,1,
+                                                                                                                                                                                                                                                                                        3])
+                                                                                                                                                                                                                                                                            else:
+                                                                                                                                                                                                                                                                                if inp_shape == 57:
+                                                                                                                                                                                                                                                                                    out = np.array(
+                                                                                                                                                                                                                                                                                        [
+                                                                                                                                                                                                                                                                                            3,1,
+                                                                                                                                                                                                                                                                                            19,
+                                                                                                                                                                                                                                                                                            1])
+                                                                                                                                                                                                                                                                                else:
+                                                                                                                                                                                                                                                                                    if inp_shape == 69:
+                                                                                                                                                                                                                                                                                        out = np.array(
+                                                                                                                                                                                                                                                                                            [
+                                                                                                                                                                                                                                                                                                3,1,
+                                                                                                                                                                                                                                                                                                23,
+                                                                                                                                                                                                                                                                                                1])
+                                                                                                                                                                                                                                                                                    else:
+                                                                                                                                                                                                                                                                                        if inp_shape == 81:
+                                                                                                                                                                                                                                                                                            out = np.array(
+                                                                                                                                                                                                                                                                                                [
+                                                                                                                                                                                                                                                                                                    3,
+                                                                                                                                                                                                                                                                                                    3,3,
+                                                                                                                                                                                                                                                                                                    3])
+                                                                                                                                                                                                                                                                                        else:
+                                                                                                                                                                                                                                                                                            if inp_shape == 93:
+                                                                                                                                                                                                                                                                                                out = np.array(
+                                                                                                                                                                                                                                                                                                    [
+                                                                                                                                                                                                                                                                                                        1,3,
+                                                                                                                                                                                                                                                                                                        31,
+                                                                                                                                                                                                                                                                                                        1])
+
+
+        else:
+            if split_dimension_core==5:
+                if inp_shape == 1048576:
+                    out = np.array([32, 32, 32, 8,4])
+                else:
+                    if inp_shape == 524288:
+                        out = np.array([32, 32, 16, 8,4])
+                    else:
+                        if inp_shape == 262144:
+                            out = np.array([32, 16, 16, 8,4])
+                        else:
+                            if inp_shape == 131072:
+                                out = np.array([16, 16, 16, 8,4])
+                            else:
+                                if inp_shape == 65536:
+                                    out = np.array([16, 16, 16, 4,4])
+                                else:
+                                    if inp_shape == 32768:
+                                        out = np.array([16, 16, 8, 4,4])
+                                    else:
+                                        if inp_shape == 16384:
+                                            out = np.array([16, 8, 8, 4,4])
+                                        else:
+                                            if inp_shape == 8192:
+                                                out = np.array([8, 8, 8, 4,4])
+                                            else:
+                                                if inp_shape == 4096:
+                                                    out = np.array([8, 8, 8, 2,4])
+                                                else:
+                                                    if inp_shape == 2048:
+                                                        out = np.array([8, 4, 8, 2,4])
+                                                    else:
+                                                        if inp_shape == 1024:
+                                                            out = np.array([8, 4, 4, 2,4])
+                                                        else:
+                                                            if inp_shape == 512:
+                                                                out = np.array([8, 4, 4, 2,2])
+                                                            else:
+                                                                if inp_shape == 256:
+                                                                    out = np.array([4, 4, 4, 2,2])
+                                                                else:
+                                                                    if inp_shape == 128:
+                                                                        out = np.array([4, 2, 4, 2,2])
+                                                                    else:
+                                                                        if inp_shape == 64:
+                                                                            out = np.array([4, 2, 2, 2,2])
+                                                                        else:
+                                                                            if inp_shape == 32:
+                                                                                out = np.array([2, 2, 2, 2,2])
+                                                                            else:
+                                                                                if inp_shape == 16:
+                                                                                    out = np.array([2, 2, 2, 2,1])
+                                                                                else:
+                                                                                    if inp_shape == 8:
+                                                                                        out = np.array([2, 2, 1, 2,1])
+                                                                                    else:
+                                                                                        if inp_shape == 4:
+                                                                                            out = np.array([2, 1, 1, 2,1])
+                                                                                        else:
+                                                                                            if inp_shape == 91:
+                                                                                                out = np.array(
+                                                                                                    [91, 1, 1, 1, 1])
+                                                                                            else:
+                                                                                                if inp_shape == 109:
+                                                                                                    out = np.array(
+                                                                                                        [109, 1, 1, 1,1])
+                                                                                                else:
+                                                                                                    if inp_shape == 12:
+                                                                                                        out = np.array([2, 2, 3,1,1])
+                                                                                                    else:
+                                                                                                        if inp_shape == 24:
+                                                                                                            out = np.array([2, 2,2,3,1])
+                                                                                                        else:
+                                                                                                            if inp_shape == 27:
+                                                                                                                out = np.array([1,3,3,3,1])
+                                                                                                            else:
+                                                                                                                if inp_shape == 36:
+                                                                                                                    out = np.array([1,3,3,2,2])
+                                                                                                                else:
+                                                                                                                    if inp_shape == 39:
+                                                                                                                        out = np.array([1,3,13,1,1])
+                                                                                                                    else:
+                                                                                                                        if inp_shape == 42:
+                                                                                                                            out = np.array([1,2,3,7,1])
+                                                                                                                        else:
+                                                                                                                            if inp_shape == 45:
+                                                                                                                                out = np.array([1,5,3,3,1])
+                                                                                                                            else:
+                                                                                                                                if inp_shape == 48:
+                                                                                                                                    out = np.array([2,2,3,2,2])
+                                                                                                                                else:
+                                                                                                                                    if inp_shape == 51:
+                                                                                                                                        out = np.array([1,3,17,1,1])
+                                                                                                                                    else:
+                                                                                                                                        if inp_shape == 72:
+                                                                                                                                            out = np.array([2,2,3,2,3])
+                                                                                                                                        else:
+                                                                                                                                            if inp_shape == 75:
+                                                                                                                                                out = np.array([1,3,5,5,1])
+                                                                                                                                            else:
+                                                                                                                                                if inp_shape == 84:
+                                                                                                                                                    out = np.array([1,2,2,3,7])
+                                                                                                                                                else:
+                                                                                                                                                    if inp_shape == 87:
+                                                                                                                                                        out = np.array([1,3,29,1,1])
+                                                                                                                                                    else:
+                                                                                                                                                        if inp_shape == 3:
+                                                                                                                                                            out = np.array(
+                                                                                                                                                                [
+                                                                                                                                                                    3,
+                                                                                                                                                                    1,
+                                                                                                                                                                    1,
+                                                                                                                                                                    1,1])
+                                                                                                                                                        else:
+                                                                                                                                                            if inp_shape == 26:
+                                                                                                                                                                out = np.array(
+                                                                                                                                                                    [
+                                                                                                                                                                        1,1,
+                                                                                                                                                                        2,
+                                                                                                                                                                        13,
+                                                                                                                                                                        1])
+                                                                                                                                                            else:
+                                                                                                                                                                if inp_shape == 50:
+                                                                                                                                                                    out = np.array(
+                                                                                                                                                                        [
+                                                                                                                                                                            1,
+                                                                                                                                                                            2,
+                                                                                                                                                                            5,
+                                                                                                                                                                            5,1])
+                                                                                                                                                                else:
+                                                                                                                                                                    if inp_shape == 38:
+                                                                                                                                                                        out = np.array(
+                                                                                                                                                                            [
+                                                                                                                                                                                1,1,
+                                                                                                                                                                                2,
+                                                                                                                                                                                19,
+                                                                                                                                                                                1])
+                                                                                                                                                                    else:
+                                                                                                                                                                        if inp_shape == 60:
+                                                                                                                                                                            out = np.array(
+                                                                                                                                                                                [
+                                                                                                                                                                                    1,5,
+                                                                                                                                                                                    2,
+                                                                                                                                                                                    2,
+                                                                                                                                                                                    3])
+                                                                                                                                                                        else:
+                                                                                                                                                                            if inp_shape == 62:
+                                                                                                                                                                                out = np.array(
+                                                                                                                                                                                    [
+                                                                                                                                                                                        1,
+                                                                                                                                                                                        2,1,
+                                                                                                                                                                                        31,
+                                                                                                                                                                                        1])
+                                                                                                                                                                            else:
+                                                                                                                                                                                if inp_shape == 74:
+                                                                                                                                                                                    out = np.array(
+                                                                                                                                                                                        [
+                                                                                                                                                                                            1,2,
+                                                                                                                                                                                            37,
+                                                                                                                                                                                            1,
+                                                                                                                                                                                            1])
+                                                                                                                                                                                else:
+                                                                                                                                                                                    if inp_shape == 86:
+                                                                                                                                                                                        out = np.array(
+                                                                                                                                                                                            [
+                                                                                                                                                                                                1,
+                                                                                                                                                                                                2,1,
+                                                                                                                                                                                                43,
+                                                                                                                                                                                                1])
+                                                                                                                                                                                    else:
+                                                                                                                                                                                        if inp_shape == 38:
+                                                                                                                                                                                            out = np.array(
+                                                                                                                                                                                                [
+                                                                                                                                                                                                    1,
+                                                                                                                                                                                                    2,1,
+                                                                                                                                                                                                    19,
+                                                                                                                                                                                                    1])
+                                                                                                                                                                                        else:
+                                                                                                                                                                                            if inp_shape == 44:
+                                                                                                                                                                                                out = np.array(
+                                                                                                                                                                                                    [
+                                                                                                                                                                                                        1,
+                                                                                                                                                                                                        2,1,
+                                                                                                                                                                                                        2,
+                                                                                                                                                                                                        11])
+                                                                                                                                                                                            else:
+                                                                                                                                                                                                if inp_shape == 56:
+                                                                                                                                                                                                    out = np.array(
+                                                                                                                                                                                                        [
+                                                                                                                                                                                                            2,
+                                                                                                                                                                                                            2,
+                                                                                                                                                                                                            7,
+                                                                                                                                                                                                            2,1])
+                                                                                                                                                                                                else:
+                                                                                                                                                                                                    if inp_shape == 68:
+                                                                                                                                                                                                        out = np.array(
+                                                                                                                                                                                                            [
+                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                2,
+                                                                                                                                                                                                                17,1,
+                                                                                                                                                                                                                2])
+                                                                                                                                                                                                    else:
+                                                                                                                                                                                                        if inp_shape == 80:
+                                                                                                                                                                                                            out = np.array(
+                                                                                                                                                                                                                [
+                                                                                                                                                                                                                    2,
+                                                                                                                                                                                                                    2,2,
+                                                                                                                                                                                                                    5,
+                                                                                                                                                                                                                    2])
+                                                                                                                                                                                                        else:
+                                                                                                                                                                                                            if inp_shape == 92:
+                                                                                                                                                                                                                out = np.array(
+                                                                                                                                                                                                                    [
+                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                        2,
+                                                                                                                                                                                                                        23,1,
+                                                                                                                                                                                                                        2])
+                                                                                                                                                                                                            else:
+                                                                                                                                                                                                                if inp_shape == 1:
+                                                                                                                                                                                                                    out = np.array(
+                                                                                                                                                                                                                        [
+                                                                                                                                                                                                                            1,1,
+                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                            1])
+                                                                                                                                                                                                                else:
+                                                                                                                                                                                                                    if inp_shape == 130:
+                                                                                                                                                                                                                        out = np.array(
+                                                                                                                                                                                                                            [
+                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                2,
+                                                                                                                                                                                                                                13,
+                                                                                                                                                                                                                                5,1])
+                                                                                                                                                                                                                    else:
+                                                                                                                                                                                                                        if inp_shape == 18432:
+                                                                                                                                                                                                                            out = np.array(
+                                                                                                                                                                                                                                [
+                                                                                                                                                                                                                                    12,
+                                                                                                                                                                                                                                    4,8,
+                                                                                                                                                                                                                                    4,
+                                                                                                                                                                                                                                    12
+                                                                                                                                                                                                                                ])
+                                                                                                                                                                                                                        else:
+                                                                                                                                                                                                                            if inp_shape == 514:
+                                                                                                                                                                                                                                out = np.array(
+                                                                                                                                                                                                                                    [
+                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                        2,1,
+                                                                                                                                                                                                                                        257,
+                                                                                                                                                                                                                                        1])
+                                                                                                                                                                                                                            else:
+                                                                                                                                                                                                                                if inp_shape == 34:
+                                                                                                                                                                                                                                    out = np.array(
+                                                                                                                                                                                                                                        [
+                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                            2,1,
+                                                                                                                                                                                                                                            17,
+                                                                                                                                                                                                                                            1])
+                                                                                                                                                                                                                                else:
+                                                                                                                                                                                                                                    if inp_shape == 35:
+                                                                                                                                                                                                                                        out = np.array(
+                                                                                                                                                                                                                                            [
+                                                                                                                                                                                                                                                5,1,
+                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                7,
+                                                                                                                                                                                                                                                1])
+                                                                                                                                                                                                                                    else:
+                                                                                                                                                                                                                                        if inp_shape == 66:
+                                                                                                                                                                                                                                            out = np.array(
+                                                                                                                                                                                                                                                [
+                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                    3,11,
+                                                                                                                                                                                                                                                    2,
+                                                                                                                                                                                                                                                    1])
+                                                                                                                                                                                                                                        else:
+                                                                                                                                                                                                                                            if inp_shape == 67:
+                                                                                                                                                                                                                                                out = np.array(
+                                                                                                                                                                                                                                                    [
+                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                        67,1,
+                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                        1])
+                                                                                                                                                                                                                                            else:
+                                                                                                                                                                                                                                                if inp_shape == 131:
+                                                                                                                                                                                                                                                    out = np.array(
+                                                                                                                                                                                                                                                        [
+                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                            131,1,
+                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                            1])
+                                                                                                                                                                                                                                                else:
+                                                                                                                                                                                                                                                    if inp_shape == 258:
+                                                                                                                                                                                                                                                        out = np.array(
+                                                                                                                                                                                                                                                            [
+                                                                                                                                                                                                                                                                2,1,
+                                                                                                                                                                                                                                                                43,
+                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                3])
+                                                                                                                                                                                                                                                    else:
+                                                                                                                                                                                                                                                        if inp_shape == 259:
+                                                                                                                                                                                                                                                            out = np.array(
+                                                                                                                                                                                                                                                                [
+                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                    259,1,
+                                                                                                                                                                                                                                                                    1])
+                                                                                                                                                                                                                                                        else:
+                                                                                                                                                                                                                                                            if inp_shape == 515:
+                                                                                                                                                                                                                                                                out = np.array(
+                                                                                                                                                                                                                                                                    [
+                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                        5,1,
+                                                                                                                                                                                                                                                                        103,
+                                                                                                                                                                                                                                                                        1])
+                                                                                                                                                                                                                                                            else:
+                                                                                                                                                                                                                                                                if inp_shape == 54:
+                                                                                                                                                                                                                                                                    out = np.array(
+                                                                                                                                                                                                                                                                        [
+                                                                                                                                                                                                                                                                            3,1,
+                                                                                                                                                                                                                                                                            2,
+                                                                                                                                                                                                                                                                            3,
+                                                                                                                                                                                                                                                                            3])
+                                                                                                                                                                                                                                                                else:
+                                                                                                                                                                                                                                                                    if inp_shape == 78:
+                                                                                                                                                                                                                                                                        out = np.array(
+                                                                                                                                                                                                                                                                            [
+                                                                                                                                                                                                                                                                                2,
+                                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                                3,1,
+                                                                                                                                                                                                                                                                                13])
+                                                                                                                                                                                                                                                                    else:
+                                                                                                                                                                                                                                                                        if inp_shape == 90:
+                                                                                                                                                                                                                                                                            out = np.array(
+                                                                                                                                                                                                                                                                                [
+                                                                                                                                                                                                                                                                                    2,1,
+                                                                                                                                                                                                                                                                                    3,
+                                                                                                                                                                                                                                                                                    3,
+                                                                                                                                                                                                                                                                                    5])
+                                                                                                                                                                                                                                                                        else:
+                                                                                                                                                                                                                                                                            if inp_shape == 2:
+                                                                                                                                                                                                                                                                                out = np.array(
+                                                                                                                                                                                                                                                                                    [
+                                                                                                                                                                                                                                                                                        2,1,
+                                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                                        1])
+                                                                                                                                                                                                                                                                            else:
+                                                                                                                                                                                                                                                                                if inp_shape == 63:
+                                                                                                                                                                                                                                                                                    out = np.array(
+                                                                                                                                                                                                                                                                                        [
+                                                                                                                                                                                                                                                                                            3,1,
+                                                                                                                                                                                                                                                                                            7,
+                                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                                            3])
+                                                                                                                                                                                                                                                                                else:
+                                                                                                                                                                                                                                                                                    if inp_shape == 57:
+                                                                                                                                                                                                                                                                                        out = np.array(
+                                                                                                                                                                                                                                                                                            [
+                                                                                                                                                                                                                                                                                                3,
+                                                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                                                19,1,
+                                                                                                                                                                                                                                                                                                1])
+                                                                                                                                                                                                                                                                                    else:
+                                                                                                                                                                                                                                                                                        if inp_shape == 69:
+                                                                                                                                                                                                                                                                                            out = np.array(
+                                                                                                                                                                                                                                                                                                [
+                                                                                                                                                                                                                                                                                                    3,1,
+                                                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                                                    23,
+                                                                                                                                                                                                                                                                                                    1])
+                                                                                                                                                                                                                                                                                        else:
+                                                                                                                                                                                                                                                                                            if inp_shape == 81:
+                                                                                                                                                                                                                                                                                                out = np.array(
+                                                                                                                                                                                                                                                                                                    [
+                                                                                                                                                                                                                                                                                                        1,3,
+                                                                                                                                                                                                                                                                                                        3,
+                                                                                                                                                                                                                                                                                                        3,
+                                                                                                                                                                                                                                                                                                        3])
+                                                                                                                                                                                                                                                                                            else:
+                                                                                                                                                                                                                                                                                                if inp_shape == 93:
+                                                                                                                                                                                                                                                                                                    out = np.array(
+                                                                                                                                                                                                                                                                                                        [
+                                                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                                                            3,
+                                                                                                                                                                                                                                                                                                            31,1,
+                                                                                                                                                                                                                                                                                                            1])
+
+            else:
+                if split_dimension_core == 6:
+                    if inp_shape == 1048576:
+                        out = np.array([8, 4, 32, 32, 8, 4])
+                    else:
+                        if inp_shape == 524288:
+                            out = np.array([8, 4, 32, 16, 8, 4])
+                        else:
+                            if inp_shape == 262144:
+                                out = np.array([8, 4, 16, 16, 8, 4])
+                            else:
+                                if inp_shape == 131072:
+                                    out = np.array([4,4, 16, 16, 8, 4])
+                                else:
+                                    if inp_shape == 65536:
+                                        out = np.array([4,4, 16, 16, 4, 4])
+                                    else:
+                                        if inp_shape == 32768:
+                                            out = np.array([4,4, 16, 8, 4, 4])
+                                        else:
+                                            if inp_shape == 16384:
+                                                out = np.array([4,4, 8, 8, 4, 4])
+                                            else:
+                                                if inp_shape == 8192:
+                                                    out = np.array([4,2, 8, 8, 4, 4])
+                                                else:
+                                                    if inp_shape == 4096:
+                                                        out = np.array([4,2, 8, 8, 2, 4])
+                                                    else:
+                                                        if inp_shape == 2048:
+                                                            out = np.array([4,2, 4, 8, 2, 4])
+                                                        else:
+                                                            if inp_shape == 1024:
+                                                                out = np.array([4,2, 4, 4, 2, 4])
+                                                            else:
+                                                                if inp_shape == 512:
+                                                                    out = np.array([4,2, 4, 4, 2, 2])
+                                                                else:
+                                                                    if inp_shape == 256:
+                                                                        out = np.array([2, 2, 4, 4, 2, 2])
+                                                                    else:
+                                                                        if inp_shape == 128:
+                                                                            out = np.array([2, 2, 2, 4, 2, 2])
+                                                                        else:
+                                                                            if inp_shape == 64:
+                                                                                out = np.array([2, 2, 2, 2, 2, 2])
+                                                                            else:
+                                                                                if inp_shape == 32:
+                                                                                    out = np.array([1,2, 2, 2, 2, 2])
+                                                                                else:
+                                                                                    if inp_shape == 16:
+                                                                                        out = np.array([1,2, 2, 2, 2, 1])
+                                                                                    else:
+                                                                                        if inp_shape == 8:
+                                                                                            out = np.array([1,2, 2, 1, 2, 1])
+                                                                                        else:
+                                                                                            if inp_shape == 4:
+                                                                                                out = np.array(
+                                                                                                    [1,2, 1, 1, 2, 1])
+                                                                                            else:
+                                                                                                if inp_shape == 91:
+                                                                                                    out = np.array(
+                                                                                                        [91, 1, 1, 1, 1, 1])
+                                                                                                else:
+                                                                                                    if inp_shape == 109:
+                                                                                                        out = np.array(
+                                                                                                            [109, 1, 1, 1,
+                                                                                                             1, 1])
+                                                                                                    else:
+                                                                                                        if inp_shape == 12:
+                                                                                                            out = np.array([1,2, 2,3, 1,1])
+                                                                                                        else:
+                                                                                                            if inp_shape == 24:
+                                                                                                                out = np.array([1,2,2,2,3,1])
+                                                                                                            else:
+                                                                                                                if inp_shape == 27:
+                                                                                                                    out = np.array([1,1,3,3,3,1])
+                                                                                                                else:
+                                                                                                                    if inp_shape == 36:
+                                                                                                                        out = np.array([1,3,3,2,2,1])
+                                                                                                                    else:
+                                                                                                                        if inp_shape == 39:
+                                                                                                                            out = np.array([1,1,3,13,1,1])
+                                                                                                                        else:
+                                                                                                                            if inp_shape == 42:
+                                                                                                                                out = np.array([1,1,2,3,7,1])
+                                                                                                                            else:
+                                                                                                                                if inp_shape == 45:
+                                                                                                                                    out = np.array([1,1,5,3,3,1])
+                                                                                                                                else:
+                                                                                                                                    if inp_shape == 48:
+                                                                                                                                        out = np.array([1,2,2,3,2,2])
+                                                                                                                                    else:
+                                                                                                                                        if inp_shape == 51:
+                                                                                                                                            out = np.array([1,1,3,17,1,1])
+                                                                                                                                        else:
+                                                                                                                                            if inp_shape == 72:
+                                                                                                                                                out = np.array([1,2,2,3,2,3])
+                                                                                                                                            else:
+                                                                                                                                                if inp_shape == 75:
+                                                                                                                                                    out = np.array([1,1,3,5,5,1])
+                                                                                                                                                else:
+                                                                                                                                                    if inp_shape == 84:
+                                                                                                                                                        out = np.array([1,2,2,3,7,1])
+                                                                                                                                                    else:
+                                                                                                                                                        if inp_shape == 87:
+                                                                                                                                                            out = np.array([1,1,3,29,1,1])
+                                                                                                                                                        else:
+                                                                                                                                                            if inp_shape == 3:
+                                                                                                                                                                out = np.array(
+                                                                                                                                                                    [
+                                                                                                                                                                        3,
+                                                                                                                                                                        1,
+                                                                                                                                                                        1,
+                                                                                                                                                                        1,
+                                                                                                                                                                        1,1])
+                                                                                                                                                            else:
+                                                                                                                                                                if inp_shape == 26:
+                                                                                                                                                                    out = np.array(
+                                                                                                                                                                        [
+                                                                                                                                                                            1,
+                                                                                                                                                                            1,
+                                                                                                                                                                            2,
+                                                                                                                                                                            13,
+                                                                                                                                                                            1,1])
+                                                                                                                                                                else:
+                                                                                                                                                                    if inp_shape == 50:
+                                                                                                                                                                        out = np.array(
+                                                                                                                                                                            [
+                                                                                                                                                                                1,1,
+                                                                                                                                                                                2,
+                                                                                                                                                                                5,
+                                                                                                                                                                                5,
+                                                                                                                                                                                1])
+                                                                                                                                                                    else:
+                                                                                                                                                                        if inp_shape == 38:
+                                                                                                                                                                            out = np.array(
+                                                                                                                                                                                [
+                                                                                                                                                                                    1,
+                                                                                                                                                                                    1,
+                                                                                                                                                                                    2,
+                                                                                                                                                                                    1,
+                                                                                                                                                                                    19,
+                                                                                                                                                                                    1])
+                                                                                                                                                                        else:
+                                                                                                                                                                            if inp_shape == 60:
+                                                                                                                                                                                out = np.array(
+                                                                                                                                                                                    [
+                                                                                                                                                                                        1,
+                                                                                                                                                                                        5,1,
+                                                                                                                                                                                        2,
+                                                                                                                                                                                        2,
+                                                                                                                                                                                        3])
+                                                                                                                                                                            else:
+                                                                                                                                                                                if inp_shape == 62:
+                                                                                                                                                                                    out = np.array(
+                                                                                                                                                                                        [
+                                                                                                                                                                                            1,
+                                                                                                                                                                                            2,
+                                                                                                                                                                                            1,
+                                                                                                                                                                                            31,1,
+                                                                                                                                                                                            1])
+                                                                                                                                                                                else:
+                                                                                                                                                                                    if inp_shape == 74:
+                                                                                                                                                                                        out = np.array(
+                                                                                                                                                                                            [
+                                                                                                                                                                                                1,
+                                                                                                                                                                                                2,
+                                                                                                                                                                                                37,1,
+                                                                                                                                                                                                1,
+                                                                                                                                                                                                1])
+                                                                                                                                                                                    else:
+                                                                                                                                                                                        if inp_shape == 86:
+                                                                                                                                                                                            out = np.array(
+                                                                                                                                                                                                [
+                                                                                                                                                                                                    1,
+                                                                                                                                                                                                    2,
+                                                                                                                                                                                                    1,
+                                                                                                                                                                                                    43,1,
+                                                                                                                                                                                                    1])
+                                                                                                                                                                                        else:
+                                                                                                                                                                                            if inp_shape == 38:
+                                                                                                                                                                                                out = np.array(
+                                                                                                                                                                                                    [
+                                                                                                                                                                                                        1,
+                                                                                                                                                                                                        2,
+                                                                                                                                                                                                        1,
+                                                                                                                                                                                                        19,1,
+                                                                                                                                                                                                        1])
+                                                                                                                                                                                            else:
+                                                                                                                                                                                                if inp_shape == 44:
+                                                                                                                                                                                                    out = np.array(
+                                                                                                                                                                                                        [
+                                                                                                                                                                                                            1,
+                                                                                                                                                                                                            2,
+                                                                                                                                                                                                            1,
+                                                                                                                                                                                                            2,1,
+                                                                                                                                                                                                            11])
+                                                                                                                                                                                                else:
+                                                                                                                                                                                                    if inp_shape == 56:
+                                                                                                                                                                                                        out = np.array(
+                                                                                                                                                                                                            [
+                                                                                                                                                                                                                1,2,
+                                                                                                                                                                                                                2,
+                                                                                                                                                                                                                7,
+                                                                                                                                                                                                                2,
+                                                                                                                                                                                                                1])
+                                                                                                                                                                                                    else:
+                                                                                                                                                                                                        if inp_shape == 68:
+                                                                                                                                                                                                            out = np.array(
+                                                                                                                                                                                                                [
+                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                    2,
+                                                                                                                                                                                                                    17,
+                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                    2,1])
+                                                                                                                                                                                                        else:
+                                                                                                                                                                                                            if inp_shape == 80:
+                                                                                                                                                                                                                out = np.array(
+                                                                                                                                                                                                                    [
+                                                                                                                                                                                                                        1,2,
+                                                                                                                                                                                                                        2,
+                                                                                                                                                                                                                        2,
+                                                                                                                                                                                                                        5,
+                                                                                                                                                                                                                        2])
+                                                                                                                                                                                                            else:
+                                                                                                                                                                                                                if inp_shape == 92:
+                                                                                                                                                                                                                    out = np.array(
+                                                                                                                                                                                                                        [
+                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                            2,1,
+                                                                                                                                                                                                                            23,
+                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                            2])
+                                                                                                                                                                                                                else:
+                                                                                                                                                                                                                    if inp_shape == 1:
+                                                                                                                                                                                                                        out = np.array(
+                                                                                                                                                                                                                            [
+                                                                                                                                                                                                                                1,1,
+                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                1])
+                                                                                                                                                                                                                    else:
+                                                                                                                                                                                                                        if inp_shape == 130:
+                                                                                                                                                                                                                            out = np.array(
+                                                                                                                                                                                                                                [
+                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                    2,
+                                                                                                                                                                                                                                    13,1,
+                                                                                                                                                                                                                                    5,
+                                                                                                                                                                                                                                    1])
+                                                                                                                                                                                                                        else:
+                                                                                                                                                                                                                            if inp_shape == 18432:
+                                                                                                                                                                                                                                out = np.array(
+                                                                                                                                                                                                                                    [
+                                                                                                                                                                                                                                        12,
+                                                                                                                                                                                                                                        4,
+                                                                                                                                                                                                                                        8,
+                                                                                                                                                                                                                                        4,
+                                                                                                                                                                                                                                        3,4
+                                                                                                                                                                                                                                    ])
+                                                                                                                                                                                                                            else:
+                                                                                                                                                                                                                                if inp_shape == 514:
+                                                                                                                                                                                                                                    out = np.array(
+                                                                                                                                                                                                                                        [
+                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                            2,
+                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                            257,1,
+                                                                                                                                                                                                                                            1])
+                                                                                                                                                                                                                                else:
+                                                                                                                                                                                                                                    if inp_shape == 34:
+                                                                                                                                                                                                                                        out = np.array(
+                                                                                                                                                                                                                                            [
+                                                                                                                                                                                                                                                1,1,
+                                                                                                                                                                                                                                                2,
+                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                17,
+                                                                                                                                                                                                                                                1])
+                                                                                                                                                                                                                                    else:
+                                                                                                                                                                                                                                        if inp_shape == 35:
+                                                                                                                                                                                                                                            out = np.array(
+                                                                                                                                                                                                                                                [
+                                                                                                                                                                                                                                                    5,1,
+                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                    7,
+                                                                                                                                                                                                                                                    1])
+                                                                                                                                                                                                                                        else:
+                                                                                                                                                                                                                                            if inp_shape == 66:
+                                                                                                                                                                                                                                                out = np.array(
+                                                                                                                                                                                                                                                    [
+                                                                                                                                                                                                                                                        1,1,
+                                                                                                                                                                                                                                                        3,
+                                                                                                                                                                                                                                                        11,
+                                                                                                                                                                                                                                                        2,
+                                                                                                                                                                                                                                                        1])
+                                                                                                                                                                                                                                            else:
+                                                                                                                                                                                                                                                if inp_shape == 67:
+                                                                                                                                                                                                                                                    out = np.array(
+                                                                                                                                                                                                                                                        [
+                                                                                                                                                                                                                                                            1,1,
+                                                                                                                                                                                                                                                            67,
+                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                            1])
+                                                                                                                                                                                                                                                else:
+                                                                                                                                                                                                                                                    if inp_shape == 131:
+                                                                                                                                                                                                                                                        out = np.array(
+                                                                                                                                                                                                                                                            [
+                                                                                                                                                                                                                                                                1,1,
+                                                                                                                                                                                                                                                                131,
+                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                1])
+                                                                                                                                                                                                                                                    else:
+                                                                                                                                                                                                                                                        if inp_shape == 258:
+                                                                                                                                                                                                                                                            out = np.array(
+                                                                                                                                                                                                                                                                [
+                                                                                                                                                                                                                                                                    2,1,
+                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                    43,
+                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                    3])
+                                                                                                                                                                                                                                                        else:
+                                                                                                                                                                                                                                                            if inp_shape == 259:
+                                                                                                                                                                                                                                                                out = np.array(
+                                                                                                                                                                                                                                                                    [
+                                                                                                                                                                                                                                                                        1,1,
+                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                        259,
+                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                        1])
+                                                                                                                                                                                                                                                            else:
+                                                                                                                                                                                                                                                                if inp_shape == 515:
+                                                                                                                                                                                                                                                                    out = np.array(
+                                                                                                                                                                                                                                                                        [
+                                                                                                                                                                                                                                                                            1,1,
+                                                                                                                                                                                                                                                                            5,
+                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                            103,
+                                                                                                                                                                                                                                                                            1])
+                                                                                                                                                                                                                                                                else:
+                                                                                                                                                                                                                                                                    if inp_shape == 54:
+                                                                                                                                                                                                                                                                        out = np.array(
+                                                                                                                                                                                                                                                                            [
+                                                                                                                                                                                                                                                                                3,
+                                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                                2,1,
+                                                                                                                                                                                                                                                                                3,
+                                                                                                                                                                                                                                                                                3])
+                                                                                                                                                                                                                                                                    else:
+                                                                                                                                                                                                                                                                        if inp_shape == 78:
+                                                                                                                                                                                                                                                                            out = np.array(
+                                                                                                                                                                                                                                                                                [
+                                                                                                                                                                                                                                                                                    2,
+                                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                                    3,
+                                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                                    13,1])
+                                                                                                                                                                                                                                                                        else:
+                                                                                                                                                                                                                                                                            if inp_shape == 90:
+                                                                                                                                                                                                                                                                                out = np.array(
+                                                                                                                                                                                                                                                                                    [
+                                                                                                                                                                                                                                                                                        2,
+                                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                                        3,
+                                                                                                                                                                                                                                                                                        3,1,
+                                                                                                                                                                                                                                                                                        5])
+                                                                                                                                                                                                                                                                            else:
+                                                                                                                                                                                                                                                                                if inp_shape == 2:
+                                                                                                                                                                                                                                                                                    out = np.array(
+                                                                                                                                                                                                                                                                                        [
+                                                                                                                                                                                                                                                                                            2,1,
+                                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                                            1])
+                                                                                                                                                                                                                                                                                else:
+                                                                                                                                                                                                                                                                                    if inp_shape == 63:
+                                                                                                                                                                                                                                                                                        out = np.array(
+                                                                                                                                                                                                                                                                                            [
+                                                                                                                                                                                                                                                                                                3,
+                                                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                                                7,1,
+                                                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                                                3])
+                                                                                                                                                                                                                                                                                    else:
+                                                                                                                                                                                                                                                                                        if inp_shape == 57:
+                                                                                                                                                                                                                                                                                            out = np.array(
+                                                                                                                                                                                                                                                                                                [
+                                                                                                                                                                                                                                                                                                    3,1,
+                                                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                                                    19,
+                                                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                                                    1])
+                                                                                                                                                                                                                                                                                        else:
+                                                                                                                                                                                                                                                                                            if inp_shape == 69:
+                                                                                                                                                                                                                                                                                                out = np.array(
+                                                                                                                                                                                                                                                                                                    [
+                                                                                                                                                                                                                                                                                                        1,3,
+                                                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                                                        23,
+                                                                                                                                                                                                                                                                                                        1])
+                                                                                                                                                                                                                                                                                            else:
+                                                                                                                                                                                                                                                                                                if inp_shape == 81:
+                                                                                                                                                                                                                                                                                                    out = np.array(
+                                                                                                                                                                                                                                                                                                        [
+                                                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                                                            3,
+                                                                                                                                                                                                                                                                                                            3,
+                                                                                                                                                                                                                                                                                                            3,
+                                                                                                                                                                                                                                                                                                            3,1])
+                                                                                                                                                                                                                                                                                                else:
+                                                                                                                                                                                                                                                                                                    if inp_shape == 93:
+                                                                                                                                                                                                                                                                                                        out = np.array(
+                                                                                                                                                                                                                                                                                                            [
+                                                                                                                                                                                                                                                                                                                1,1,
+                                                                                                                                                                                                                                                                                                                3,
+                                                                                                                                                                                                                                                                                                                31,
+                                                                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                                                                1])
+                else:
+                    if split_dimension_core == 7:
+                        if inp_shape == 1048576:
+                            out = np.array([8, 4, 8, 4, 32, 8, 4])
+                        else:
+                            if inp_shape == 524288:
+                                out = np.array([8, 4, 8, 4, 16, 8, 4])
+                            else:
+                                if inp_shape == 262144:
+                                    out = np.array([8, 4, 4, 4, 16, 8, 4])
+                                else:
+                                    if inp_shape == 131072:
+                                        out = np.array([4, 4, 4, 4, 16, 8, 4])
+                                    else:
+                                        if inp_shape == 65536:
+                                            out = np.array([4, 4, 4, 4, 16, 4, 4])
+                                        else:
+                                            if inp_shape == 32768:
+                                                out = np.array([4, 4, 4, 4, 8, 4, 4])
+                                            else:
+                                                if inp_shape == 16384:
+                                                    out = np.array([4, 4, 4, 2, 8, 4, 4])
+                                                else:
+                                                    if inp_shape == 8192:
+                                                        out = np.array([4, 2, 4, 2, 8, 4, 4])
+                                                    else:
+                                                        if inp_shape == 4096:
+                                                            out = np.array([4, 2, 4, 2, 8, 2, 4])
+                                                        else:
+                                                            if inp_shape == 2048:
+                                                                out = np.array([4, 2, 4, 4, 2, 2, 4])
+                                                            else:
+                                                                if inp_shape == 1024:
+                                                                    out = np.array([4, 2, 4, 2, 2, 2, 4])
+                                                                else:
+                                                                    if inp_shape == 512:
+                                                                        out = np.array([4, 2, 4, 2, 2, 2, 2])
+                                                                    else:
+                                                                        if inp_shape == 256:
+                                                                            out = np.array([2, 2, 2, 2, 4, 2, 2])
+                                                                        else:
+                                                                            if inp_shape == 128:
+                                                                                out = np.array([2, 2, 2, 2, 2, 2, 2])
+                                                                            else:
+                                                                                if inp_shape == 64:
+                                                                                    out = np.array([1,2, 2, 2, 2, 2, 2])
+                                                                                else:
+                                                                                    if inp_shape == 32:
+                                                                                        out = np.array([1, 2, 2, 2, 2, 2,1])
+                                                                                    else:
+                                                                                        if inp_shape == 16:
+                                                                                            out = np.array(
+                                                                                                [1, 2, 2, 2, 2, 1,1])
+                                                                                        else:
+                                                                                            if inp_shape == 8:
+                                                                                                out = np.array(
+                                                                                                    [1, 2, 2, 1, 2, 1,1])
+                                                                                            else:
+                                                                                                if inp_shape == 4:
+                                                                                                    out = np.array(
+                                                                                                        [1, 2, 1, 1, 2, 1,1])
+                                                                                                else:
+                                                                                                    if inp_shape == 91:
+                                                                                                        out = np.array(
+                                                                                                            [91, 1, 1, 1, 1,1,
+                                                                                                             1])
+                                                                                                    else:
+                                                                                                        if inp_shape == 109:
+                                                                                                            out = np.array(
+                                                                                                                [109, 1, 1,
+                                                                                                                 1,
+                                                                                                                 1,1,  1])
+                                                                                                        else:
+                                                                                                            if inp_shape == 12:
+                                                                                                                out = np.array(
+                                                                                                                    [1,
+                                                                                                                     2,
+                                                                                                                     2,
+                                                                                                                     3,
+                                                                                                                     1,
+                                                                                                                     1,1])
+                                                                                                            else:
+                                                                                                                if inp_shape == 24:
+                                                                                                                    out = np.array(
+                                                                                                                        [
+                                                                                                                            1,
+                                                                                                                            2,
+                                                                                                                            2,
+                                                                                                                            2,
+                                                                                                                            3,
+                                                                                                                            1,1])
+                                                                                                                else:
+                                                                                                                    if inp_shape == 27:
+                                                                                                                        out = np.array(
+                                                                                                                            [
+                                                                                                                                1,
+                                                                                                                                1,
+                                                                                                                                3,
+                                                                                                                                3,
+                                                                                                                                3,
+                                                                                                                                1,1])
+                                                                                                                    else:
+                                                                                                                        if inp_shape == 36:
+                                                                                                                            out = np.array(
+                                                                                                                                [
+                                                                                                                                    1,
+                                                                                                                                    3,
+                                                                                                                                    3,
+                                                                                                                                    2,
+                                                                                                                                    2,
+                                                                                                                                    1,1])
+                                                                                                                        else:
+                                                                                                                            if inp_shape == 39:
+                                                                                                                                out = np.array(
+                                                                                                                                    [
+                                                                                                                                        1,
+                                                                                                                                        1,
+                                                                                                                                        3,
+                                                                                                                                        13,
+                                                                                                                                        1,
+                                                                                                                                        1,1])
+                                                                                                                            else:
+                                                                                                                                if inp_shape == 42:
+                                                                                                                                    out = np.array(
+                                                                                                                                        [
+                                                                                                                                            1,
+                                                                                                                                            1,
+                                                                                                                                            2,
+                                                                                                                                            3,
+                                                                                                                                            7,
+                                                                                                                                            1,1])
+                                                                                                                                else:
+                                                                                                                                    if inp_shape == 45:
+                                                                                                                                        out = np.array(
+                                                                                                                                            [
+                                                                                                                                                1,
+                                                                                                                                                1,
+                                                                                                                                                5,
+                                                                                                                                                3,
+                                                                                                                                                3,
+                                                                                                                                                1,1])
+                                                                                                                                    else:
+                                                                                                                                        if inp_shape == 48:
+                                                                                                                                            out = np.array(
+                                                                                                                                                [
+                                                                                                                                                    1,
+                                                                                                                                                    2,
+                                                                                                                                                    2,
+                                                                                                                                                    3,
+                                                                                                                                                    2,
+                                                                                                                                                    2,1])
+                                                                                                                                        else:
+                                                                                                                                            if inp_shape == 51:
+                                                                                                                                                out = np.array(
+                                                                                                                                                    [
+                                                                                                                                                        1,
+                                                                                                                                                        1,
+                                                                                                                                                        3,
+                                                                                                                                                        17,
+                                                                                                                                                        1,
+                                                                                                                                                        1,1])
+                                                                                                                                            else:
+                                                                                                                                                if inp_shape == 72:
+                                                                                                                                                    out = np.array(
+                                                                                                                                                        [
+                                                                                                                                                            1,
+                                                                                                                                                            2,
+                                                                                                                                                            2,
+                                                                                                                                                            3,
+                                                                                                                                                            2,
+                                                                                                                                                            3,1])
+                                                                                                                                                else:
+                                                                                                                                                    if inp_shape == 75:
+                                                                                                                                                        out = np.array(
+                                                                                                                                                            [
+                                                                                                                                                                1,
+                                                                                                                                                                1,
+                                                                                                                                                                3,
+                                                                                                                                                                5,
+                                                                                                                                                                5,
+                                                                                                                                                                1,1])
+                                                                                                                                                    else:
+                                                                                                                                                        if inp_shape == 84:
+                                                                                                                                                            out = np.array(
+                                                                                                                                                                [
+                                                                                                                                                                    1,
+                                                                                                                                                                    2,
+                                                                                                                                                                    2,
+                                                                                                                                                                    3,
+                                                                                                                                                                    7,
+                                                                                                                                                                    1,1])
+                                                                                                                                                        else:
+                                                                                                                                                            if inp_shape == 87:
+                                                                                                                                                                out = np.array(
+                                                                                                                                                                    [
+                                                                                                                                                                        1,
+                                                                                                                                                                        1,
+                                                                                                                                                                        3,
+                                                                                                                                                                        29,
+                                                                                                                                                                        1,
+                                                                                                                                                                        1,1])
+                                                                                                                                                            else:
+                                                                                                                                                                if inp_shape == 3:
+                                                                                                                                                                    out = np.array(
+                                                                                                                                                                        [
+                                                                                                                                                                            3,
+                                                                                                                                                                            1,
+                                                                                                                                                                            1,
+                                                                                                                                                                            1,
+                                                                                                                                                                            1,
+                                                                                                                                                                            1,1])
+                                                                                                                                                                else:
+                                                                                                                                                                    if inp_shape == 26:
+                                                                                                                                                                        out = np.array(
+                                                                                                                                                                            [
+                                                                                                                                                                                1,
+                                                                                                                                                                                1,
+                                                                                                                                                                                2,
+                                                                                                                                                                                13,
+                                                                                                                                                                                1,
+                                                                                                                                                                                1,1])
+                                                                                                                                                                    else:
+                                                                                                                                                                        if inp_shape == 50:
+                                                                                                                                                                            out = np.array(
+                                                                                                                                                                                [
+                                                                                                                                                                                    1,
+                                                                                                                                                                                    1,
+                                                                                                                                                                                    2,
+                                                                                                                                                                                    5,
+                                                                                                                                                                                    5,
+                                                                                                                                                                                    1,1])
+                                                                                                                                                                        else:
+                                                                                                                                                                            if inp_shape == 38:
+                                                                                                                                                                                out = np.array(
+                                                                                                                                                                                    [
+                                                                                                                                                                                        1,
+                                                                                                                                                                                        1,
+                                                                                                                                                                                        2,
+                                                                                                                                                                                        1,
+                                                                                                                                                                                        19,
+                                                                                                                                                                                        1,1])
+                                                                                                                                                                            else:
+                                                                                                                                                                                if inp_shape == 60:
+                                                                                                                                                                                    out = np.array(
+                                                                                                                                                                                        [
+                                                                                                                                                                                            1,
+                                                                                                                                                                                            5,
+                                                                                                                                                                                            1,
+                                                                                                                                                                                            2,
+                                                                                                                                                                                            2,
+                                                                                                                                                                                            3,1])
+                                                                                                                                                                                else:
+                                                                                                                                                                                    if inp_shape == 62:
+                                                                                                                                                                                        out = np.array(
+                                                                                                                                                                                            [
+                                                                                                                                                                                                1,
+                                                                                                                                                                                                2,
+                                                                                                                                                                                                1,
+                                                                                                                                                                                                31,1,
+                                                                                                                                                                                                1,
+                                                                                                                                                                                                1])
+                                                                                                                                                                                    else:
+                                                                                                                                                                                        if inp_shape == 74:
+                                                                                                                                                                                            out = np.array(
+                                                                                                                                                                                                [
+                                                                                                                                                                                                    1,
+                                                                                                                                                                                                    2,1,
+                                                                                                                                                                                                    37,
+                                                                                                                                                                                                    1,
+                                                                                                                                                                                                    1,
+                                                                                                                                                                                                    1])
+                                                                                                                                                                                        else:
+                                                                                                                                                                                            if inp_shape == 86:
+                                                                                                                                                                                                out = np.array(
+                                                                                                                                                                                                    [
+                                                                                                                                                                                                        1,
+                                                                                                                                                                                                        2,1,
+                                                                                                                                                                                                        1,
+                                                                                                                                                                                                        43,
+                                                                                                                                                                                                        1,
+                                                                                                                                                                                                        1])
+                                                                                                                                                                                            else:
+                                                                                                                                                                                                if inp_shape == 38:
+                                                                                                                                                                                                    out = np.array(
+                                                                                                                                                                                                        [
+                                                                                                                                                                                                            1,
+                                                                                                                                                                                                            2,
+                                                                                                                                                                                                            1,
+                                                                                                                                                                                                            19,1,
+                                                                                                                                                                                                            1,
+                                                                                                                                                                                                            1])
+                                                                                                                                                                                                else:
+                                                                                                                                                                                                    if inp_shape == 44:
+                                                                                                                                                                                                        out = np.array(
+                                                                                                                                                                                                            [
+                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                2,
+                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                2,
+                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                11,1])
+                                                                                                                                                                                                    else:
+                                                                                                                                                                                                        if inp_shape == 56:
+                                                                                                                                                                                                            out = np.array(
+                                                                                                                                                                                                                [
+                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                    2,1,
+                                                                                                                                                                                                                    2,
+                                                                                                                                                                                                                    7,
+                                                                                                                                                                                                                    2,
+                                                                                                                                                                                                                    1])
+                                                                                                                                                                                                        else:
+                                                                                                                                                                                                            if inp_shape == 68:
+                                                                                                                                                                                                                out = np.array(
+                                                                                                                                                                                                                    [
+                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                        2,1,
+                                                                                                                                                                                                                        17,
+                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                        2,
+                                                                                                                                                                                                                        1])
+                                                                                                                                                                                                            else:
+                                                                                                                                                                                                                if inp_shape == 80:
+                                                                                                                                                                                                                    out = np.array(
+                                                                                                                                                                                                                        [
+                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                            2,
+                                                                                                                                                                                                                            2,
+                                                                                                                                                                                                                            2,
+                                                                                                                                                                                                                            5,
+                                                                                                                                                                                                                            2,1])
+                                                                                                                                                                                                                else:
+                                                                                                                                                                                                                    if inp_shape == 92:
+                                                                                                                                                                                                                        out = np.array(
+                                                                                                                                                                                                                            [
+                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                2,
+                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                23,
+                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                2,1])
+                                                                                                                                                                                                                    else:
+                                                                                                                                                                                                                        if inp_shape == 1:
+                                                                                                                                                                                                                            out = np.array(
+                                                                                                                                                                                                                                [
+                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                    1,1])
+                                                                                                                                                                                                                        else:
+                                                                                                                                                                                                                            if inp_shape == 130:
+                                                                                                                                                                                                                                out = np.array(
+                                                                                                                                                                                                                                    [
+                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                        2,1,
+                                                                                                                                                                                                                                        13,
+                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                        5,
+                                                                                                                                                                                                                                        1])
+                                                                                                                                                                                                                            else:
+                                                                                                                                                                                                                                if inp_shape == 18432:
+                                                                                                                                                                                                                                    out = np.array(
+                                                                                                                                                                                                                                        [
+                                                                                                                                                                                                                                            3,4,
+                                                                                                                                                                                                                                            4,
+                                                                                                                                                                                                                                            8,
+                                                                                                                                                                                                                                            4,
+                                                                                                                                                                                                                                            3,
+                                                                                                                                                                                                                                            4
+                                                                                                                                                                                                                                        ])
+                                                                                                                                                                                                                                else:
+                                                                                                                                                                                                                                    if inp_shape == 514:
+                                                                                                                                                                                                                                        out = np.array(
+                                                                                                                                                                                                                                            [
+                                                                                                                                                                                                                                                1,1,
+                                                                                                                                                                                                                                                2,
+                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                257,
+                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                1])
+                                                                                                                                                                                                                                    else:
+                                                                                                                                                                                                                                        if inp_shape == 34:
+                                                                                                                                                                                                                                            out = np.array(
+                                                                                                                                                                                                                                                [
+                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                    2,
+                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                    17,1,
+                                                                                                                                                                                                                                                    1])
+                                                                                                                                                                                                                                        else:
+                                                                                                                                                                                                                                            if inp_shape == 35:
+                                                                                                                                                                                                                                                out = np.array(
+                                                                                                                                                                                                                                                    [
+                                                                                                                                                                                                                                                        5,
+                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                        7,1,
+                                                                                                                                                                                                                                                        1])
+                                                                                                                                                                                                                                            else:
+                                                                                                                                                                                                                                                if inp_shape == 66:
+                                                                                                                                                                                                                                                    out = np.array(
+                                                                                                                                                                                                                                                        [
+                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                            3,
+                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                            2,11,
+                                                                                                                                                                                                                                                            1])
+                                                                                                                                                                                                                                                else:
+                                                                                                                                                                                                                                                    if inp_shape == 67:
+                                                                                                                                                                                                                                                        out = np.array(
+                                                                                                                                                                                                                                                            [
+                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                67,1,
+                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                1])
+                                                                                                                                                                                                                                                    else:
+                                                                                                                                                                                                                                                        if inp_shape == 131:
+                                                                                                                                                                                                                                                            out = np.array(
+                                                                                                                                                                                                                                                                [
+                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                    1,1,
+                                                                                                                                                                                                                                                                    131,
+                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                    1])
+                                                                                                                                                                                                                                                        else:
+                                                                                                                                                                                                                                                            if inp_shape == 258:
+                                                                                                                                                                                                                                                                out = np.array(
+                                                                                                                                                                                                                                                                    [
+                                                                                                                                                                                                                                                                        2,
+                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                        43,
+                                                                                                                                                                                                                                                                        1,1,
+                                                                                                                                                                                                                                                                        3])
+                                                                                                                                                                                                                                                            else:
+                                                                                                                                                                                                                                                                if inp_shape == 259:
+                                                                                                                                                                                                                                                                    out = np.array(
+                                                                                                                                                                                                                                                                        [
+                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                            259,1,
+                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                            1])
+                                                                                                                                                                                                                                                                else:
+                                                                                                                                                                                                                                                                    if inp_shape == 515:
+                                                                                                                                                                                                                                                                        out = np.array(
+                                                                                                                                                                                                                                                                            [
+                                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                                5,
+                                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                                103,1,
+                                                                                                                                                                                                                                                                                1])
+                                                                                                                                                                                                                                                                    else:
+                                                                                                                                                                                                                                                                        if inp_shape == 54:
+                                                                                                                                                                                                                                                                            out = np.array(
+                                                                                                                                                                                                                                                                                [
+                                                                                                                                                                                                                                                                                    3,
+                                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                                    2,
+                                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                                    3,1,
+                                                                                                                                                                                                                                                                                    3])
+                                                                                                                                                                                                                                                                        else:
+                                                                                                                                                                                                                                                                            if inp_shape == 78:
+                                                                                                                                                                                                                                                                                out = np.array(
+                                                                                                                                                                                                                                                                                    [
+                                                                                                                                                                                                                                                                                        2,
+                                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                                        3,
+                                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                                        13,1,
+                                                                                                                                                                                                                                                                                        1])
+                                                                                                                                                                                                                                                                            else:
+                                                                                                                                                                                                                                                                                if inp_shape == 90:
+                                                                                                                                                                                                                                                                                    out = np.array(
+                                                                                                                                                                                                                                                                                        [
+                                                                                                                                                                                                                                                                                            2,
+                                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                                            3,1,
+                                                                                                                                                                                                                                                                                            3,
+                                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                                            5])
+                                                                                                                                                                                                                                                                                else:
+                                                                                                                                                                                                                                                                                    if inp_shape == 2:
+                                                                                                                                                                                                                                                                                        out = np.array(
+                                                                                                                                                                                                                                                                                            [
+                                                                                                                                                                                                                                                                                                2,1,
+                                                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                                                1])
+                                                                                                                                                                                                                                                                                    else:
+                                                                                                                                                                                                                                                                                        if inp_shape == 63:
+                                                                                                                                                                                                                                                                                            out = np.array(
+                                                                                                                                                                                                                                                                                                [
+                                                                                                                                                                                                                                                                                                    1,3,
+                                                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                                                    7,
+                                                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                                                    3])
+                                                                                                                                                                                                                                                                                        else:
+                                                                                                                                                                                                                                                                                            if inp_shape == 57:
+                                                                                                                                                                                                                                                                                                out = np.array(
+                                                                                                                                                                                                                                                                                                    [
+                                                                                                                                                                                                                                                                                                        3,
+                                                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                                                        19,1,
+                                                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                                                        1])
+                                                                                                                                                                                                                                                                                            else:
+                                                                                                                                                                                                                                                                                                if inp_shape == 69:
+                                                                                                                                                                                                                                                                                                    out = np.array(
+                                                                                                                                                                                                                                                                                                        [
+                                                                                                                                                                                                                                                                                                            1,1,
+                                                                                                                                                                                                                                                                                                            3,
+                                                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                                                            23,
+                                                                                                                                                                                                                                                                                                            1])
+                                                                                                                                                                                                                                                                                                else:
+                                                                                                                                                                                                                                                                                                    if inp_shape == 81:
+                                                                                                                                                                                                                                                                                                        out = np.array(
+                                                                                                                                                                                                                                                                                                            [
+                                                                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                                                                3,
+                                                                                                                                                                                                                                                                                                                3,
+                                                                                                                                                                                                                                                                                                                3,
+                                                                                                                                                                                                                                                                                                                3,1,
+                                                                                                                                                                                                                                                                                                                1])
+                                                                                                                                                                                                                                                                                                    else:
+                                                                                                                                                                                                                                                                                                        if inp_shape == 93:
+                                                                                                                                                                                                                                                                                                            out = np.array(
+                                                                                                                                                                                                                                                                                                                [
+                                                                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                                                                    3,
+                                                                                                                                                                                                                                                                                                                    31,1,
+                                                                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                                                                    1])
+
+
+                    else:
+                        if split_dimension_core == 8:
+                            if inp_shape == 1048576:
+                                out = np.array([8, 4, 8, 4, 8, 4, 8, 4])
+                            else:
+                                if inp_shape == 524288:
+                                    out = np.array([8, 4, 8, 4, 2,8, 8, 4])
+                                else:
+                                    if inp_shape == 262144:
+                                        out = np.array([8, 4, 4, 4, 2,8, 8, 4])
+                                    else:
+                                        if inp_shape == 131072:
+                                            out = np.array([4, 4, 4, 4, 2,8, 8, 4])
+                                        else:
+                                            if inp_shape == 65536:
+                                                out = np.array([4, 4, 4, 4, 2,8, 4, 4])
+                                            else:
+                                                if inp_shape == 32768:
+                                                    out = np.array([4, 4, 4, 4, 2,4, 4, 4])
+                                                else:
+                                                    if inp_shape == 16384:
+                                                        out = np.array([4, 4, 4, 2, 2,4, 4, 4])
+                                                    else:
+                                                        if inp_shape == 8192:
+                                                            out = np.array([4, 2, 4, 2, 2,4, 4, 4])
+                                                        else:
+                                                            if inp_shape == 4096:
+                                                                out = np.array([4, 2, 4, 2, 2,4, 2, 4])
+                                                            else:
+                                                                if inp_shape == 2048:
+                                                                    out = np.array([4, 2, 4, 2, 2, 2, 2, 4])
+                                                                else:
+                                                                    if inp_shape == 1024:
+                                                                        out = np.array([4, 2, 2, 2, 2, 2, 2, 4])
+                                                                    else:
+                                                                        if inp_shape == 512:
+                                                                            out = np.array([4, 2, 2, 2, 2, 2, 2, 2])
+                                                                        else:
+                                                                            if inp_shape == 256:
+                                                                                out = np.array([2, 2, 2, 2, 2, 2, 2, 2])
+                                                                            else:
+                                                                                if inp_shape == 128:
+                                                                                    out = np.array([1,2, 2, 2, 2, 2, 2, 2])
+                                                                                else:
+                                                                                    if inp_shape == 64:
+                                                                                        out = np.array(
+                                                                                            [1,1, 2, 2, 2, 2, 2, 2])
+                                                                                    else:
+                                                                                        if inp_shape == 32:
+                                                                                            out = np.array(
+                                                                                                [1,1, 2, 2, 2, 2, 2, 1])
+                                                                                        else:
+                                                                                            if inp_shape == 16:
+                                                                                                out = np.array(
+                                                                                                    [1,1, 2, 2, 2, 2, 1, 1])
+                                                                                            else:
+                                                                                                if inp_shape == 8:
+                                                                                                    out = np.array(
+                                                                                                        [1,1, 2, 2, 1, 2, 1,
+                                                                                                         1])
+                                                                                                else:
+                                                                                                    if inp_shape == 4:
+                                                                                                        out = np.array(
+                                                                                                            [1,1, 2, 1, 1, 2,
+                                                                                                             1, 1])
+                                                                                                    else:
+                                                                                                        if inp_shape == 91:
+                                                                                                            out = np.array(
+                                                                                                                [91, 1, 1,
+                                                                                                                 1, 1, 1,
+                                                                                                                 1, 1])
+                                                                                                        else:
+                                                                                                            if inp_shape == 109:
+                                                                                                                out = np.array(
+                                                                                                                    [109, 1,
+                                                                                                                     1,
+                                                                                                                     1,
+                                                                                                                     1, 1,
+                                                                                                                     1, 1])
+                                                                                                            else:
+                                                                                                                if inp_shape == 12:
+                                                                                                                    out = np.array(
+                                                                                                                        [
+                                                                                                                            1,
+                                                                                                                            2,
+                                                                                                                            2,
+                                                                                                                            3,
+                                                                                                                            1,
+                                                                                                                            1,
+                                                                                                                            1,1])
+                                                                                                                else:
+                                                                                                                    if inp_shape == 24:
+                                                                                                                        out = np.array(
+                                                                                                                            [
+                                                                                                                                1,
+                                                                                                                                2,
+                                                                                                                                2,
+                                                                                                                                2,
+                                                                                                                                3,
+                                                                                                                                1,
+                                                                                                                                1,1])
+                                                                                                                    else:
+                                                                                                                        if inp_shape == 27:
+                                                                                                                            out = np.array(
+                                                                                                                                [
+                                                                                                                                    1,
+                                                                                                                                    1,
+                                                                                                                                    3,
+                                                                                                                                    3,
+                                                                                                                                    3,
+                                                                                                                                    1,
+                                                                                                                                    1,1])
+                                                                                                                        else:
+                                                                                                                            if inp_shape == 36:
+                                                                                                                                out = np.array(
+                                                                                                                                    [
+                                                                                                                                        1,
+                                                                                                                                        3,
+                                                                                                                                        3,
+                                                                                                                                        2,
+                                                                                                                                        2,
+                                                                                                                                        1,
+                                                                                                                                        1,1])
+                                                                                                                            else:
+                                                                                                                                if inp_shape == 39:
+                                                                                                                                    out = np.array(
+                                                                                                                                        [
+                                                                                                                                            1,
+                                                                                                                                            1,
+                                                                                                                                            3,
+                                                                                                                                            13,
+                                                                                                                                            1,
+                                                                                                                                            1,
+                                                                                                                                            1,1])
+                                                                                                                                else:
+                                                                                                                                    if inp_shape == 42:
+                                                                                                                                        out = np.array(
+                                                                                                                                            [
+                                                                                                                                                1,
+                                                                                                                                                1,
+                                                                                                                                                2,
+                                                                                                                                                3,
+                                                                                                                                                7,
+                                                                                                                                                1,
+                                                                                                                                                1,1])
+                                                                                                                                    else:
+                                                                                                                                        if inp_shape == 45:
+                                                                                                                                            out = np.array(
+                                                                                                                                                [
+                                                                                                                                                    1,
+                                                                                                                                                    1,
+                                                                                                                                                    5,
+                                                                                                                                                    3,
+                                                                                                                                                    3,
+                                                                                                                                                    1,
+                                                                                                                                                    1,1])
+                                                                                                                                        else:
+                                                                                                                                            if inp_shape == 48:
+                                                                                                                                                out = np.array(
+                                                                                                                                                    [
+                                                                                                                                                        1,
+                                                                                                                                                        2,
+                                                                                                                                                        2,
+                                                                                                                                                        3,
+                                                                                                                                                        2,
+                                                                                                                                                        2,
+                                                                                                                                                        1,1])
+                                                                                                                                            else:
+                                                                                                                                                if inp_shape == 51:
+                                                                                                                                                    out = np.array(
+                                                                                                                                                        [
+                                                                                                                                                            1,
+                                                                                                                                                            1,
+                                                                                                                                                            3,
+                                                                                                                                                            17,
+                                                                                                                                                            1,
+                                                                                                                                                            1,
+                                                                                                                                                            1,1])
+                                                                                                                                                else:
+                                                                                                                                                    if inp_shape == 72:
+                                                                                                                                                        out = np.array(
+                                                                                                                                                            [
+                                                                                                                                                                1,
+                                                                                                                                                                2,
+                                                                                                                                                                2,
+                                                                                                                                                                3,
+                                                                                                                                                                2,
+                                                                                                                                                                3,
+                                                                                                                                                                1,1])
+                                                                                                                                                    else:
+                                                                                                                                                        if inp_shape == 75:
+                                                                                                                                                            out = np.array(
+                                                                                                                                                                [
+                                                                                                                                                                    1,
+                                                                                                                                                                    1,
+                                                                                                                                                                    3,
+                                                                                                                                                                    5,
+                                                                                                                                                                    5,
+                                                                                                                                                                    1,
+                                                                                                                                                                    1,1])
+                                                                                                                                                        else:
+                                                                                                                                                            if inp_shape == 84:
+                                                                                                                                                                out = np.array(
+                                                                                                                                                                    [
+                                                                                                                                                                        1,
+                                                                                                                                                                        2,
+                                                                                                                                                                        2,
+                                                                                                                                                                        3,
+                                                                                                                                                                        7,
+                                                                                                                                                                        1,
+                                                                                                                                                                        1,1])
+                                                                                                                                                            else:
+                                                                                                                                                                if inp_shape == 87:
+                                                                                                                                                                    out = np.array(
+                                                                                                                                                                        [
+                                                                                                                                                                            1,
+                                                                                                                                                                            1,
+                                                                                                                                                                            3,
+                                                                                                                                                                            29,
+                                                                                                                                                                            1,
+                                                                                                                                                                            1,
+                                                                                                                                                                            1,1])
+                                                                                                                                                                else:
+                                                                                                                                                                    if inp_shape == 3:
+                                                                                                                                                                        out = np.array(
+                                                                                                                                                                            [
+                                                                                                                                                                                3,
+                                                                                                                                                                                1,
+                                                                                                                                                                                1,
+                                                                                                                                                                                1,
+                                                                                                                                                                                1,
+                                                                                                                                                                                1,
+                                                                                                                                                                                1,1])
+                                                                                                                                                                    else:
+                                                                                                                                                                        if inp_shape == 26:
+                                                                                                                                                                            out = np.array(
+                                                                                                                                                                                [
+                                                                                                                                                                                    1,1,
+                                                                                                                                                                                    1,
+                                                                                                                                                                                    2,
+                                                                                                                                                                                    13,
+                                                                                                                                                                                    1,
+                                                                                                                                                                                    1,
+                                                                                                                                                                                    1])
+                                                                                                                                                                        else:
+                                                                                                                                                                            if inp_shape == 50:
+                                                                                                                                                                                out = np.array(
+                                                                                                                                                                                    [
+                                                                                                                                                                                        1,1,
+                                                                                                                                                                                        1,
+                                                                                                                                                                                        2,
+                                                                                                                                                                                        5,
+                                                                                                                                                                                        5,
+                                                                                                                                                                                        1,
+                                                                                                                                                                                        1])
+                                                                                                                                                                            else:
+                                                                                                                                                                                if inp_shape == 38:
+                                                                                                                                                                                    out = np.array(
+                                                                                                                                                                                        [
+                                                                                                                                                                                            1,
+                                                                                                                                                                                            1,
+                                                                                                                                                                                            2,
+                                                                                                                                                                                            1,
+                                                                                                                                                                                            19,1,
+                                                                                                                                                                                            1,
+                                                                                                                                                                                            1])
+                                                                                                                                                                                else:
+                                                                                                                                                                                    if inp_shape == 60:
+                                                                                                                                                                                        out = np.array(
+                                                                                                                                                                                            [
+                                                                                                                                                                                                1,
+                                                                                                                                                                                                5,1,
+                                                                                                                                                                                                1,
+                                                                                                                                                                                                2,
+                                                                                                                                                                                                2,
+                                                                                                                                                                                                3,
+                                                                                                                                                                                                1])
+                                                                                                                                                                                    else:
+                                                                                                                                                                                        if inp_shape == 62:
+                                                                                                                                                                                            out = np.array(
+                                                                                                                                                                                                [
+                                                                                                                                                                                                    1,
+                                                                                                                                                                                                    2,1,
+                                                                                                                                                                                                    1,
+                                                                                                                                                                                                    31,
+                                                                                                                                                                                                    1,
+                                                                                                                                                                                                    1,
+                                                                                                                                                                                                    1])
+                                                                                                                                                                                        else:
+                                                                                                                                                                                            if inp_shape == 74:
+                                                                                                                                                                                                out = np.array(
+                                                                                                                                                                                                    [
+                                                                                                                                                                                                        1,1,
+                                                                                                                                                                                                        2,
+                                                                                                                                                                                                        1,
+                                                                                                                                                                                                        37,
+                                                                                                                                                                                                        1,
+                                                                                                                                                                                                        1,
+                                                                                                                                                                                                        1])
+                                                                                                                                                                                            else:
+                                                                                                                                                                                                if inp_shape == 86:
+                                                                                                                                                                                                    out = np.array(
+                                                                                                                                                                                                        [
+                                                                                                                                                                                                            1,
+                                                                                                                                                                                                            2,
+                                                                                                                                                                                                            1,
+                                                                                                                                                                                                            1,
+                                                                                                                                                                                                            43,1,
+                                                                                                                                                                                                            1,
+                                                                                                                                                                                                            1])
+                                                                                                                                                                                                else:
+                                                                                                                                                                                                    if inp_shape == 38:
+                                                                                                                                                                                                        out = np.array(
+                                                                                                                                                                                                            [
+                                                                                                                                                                                                                1,1,
+                                                                                                                                                                                                                2,
+                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                19,
+                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                1])
+                                                                                                                                                                                                    else:
+                                                                                                                                                                                                        if inp_shape == 44:
+                                                                                                                                                                                                            out = np.array(
+                                                                                                                                                                                                                [
+                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                    2,
+                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                    2,
+                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                    11,1,
+                                                                                                                                                                                                                    1])
+                                                                                                                                                                                                        else:
+                                                                                                                                                                                                            if inp_shape == 56:
+                                                                                                                                                                                                                out = np.array(
+                                                                                                                                                                                                                    [
+                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                        2,
+                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                        2,1,
+                                                                                                                                                                                                                        7,
+                                                                                                                                                                                                                        2,
+                                                                                                                                                                                                                        1])
+                                                                                                                                                                                                            else:
+                                                                                                                                                                                                                if inp_shape == 68:
+                                                                                                                                                                                                                    out = np.array(
+                                                                                                                                                                                                                        [
+                                                                                                                                                                                                                            1,1,
+                                                                                                                                                                                                                            2,
+                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                            17,
+                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                            2,
+                                                                                                                                                                                                                            1])
+                                                                                                                                                                                                                else:
+                                                                                                                                                                                                                    if inp_shape == 80:
+                                                                                                                                                                                                                        out = np.array(
+                                                                                                                                                                                                                            [
+                                                                                                                                                                                                                                1,1,
+                                                                                                                                                                                                                                2,
+                                                                                                                                                                                                                                2,
+                                                                                                                                                                                                                                2,
+                                                                                                                                                                                                                                5,
+                                                                                                                                                                                                                                2,
+                                                                                                                                                                                                                                1])
+                                                                                                                                                                                                                    else:
+                                                                                                                                                                                                                        if inp_shape == 92:
+                                                                                                                                                                                                                            out = np.array(
+                                                                                                                                                                                                                                [
+                                                                                                                                                                                                                                    1,1,
+                                                                                                                                                                                                                                    2,
+                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                    23,
+                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                    2,
+                                                                                                                                                                                                                                    1])
+                                                                                                                                                                                                                        else:
+                                                                                                                                                                                                                            if inp_shape == 1:
+                                                                                                                                                                                                                                out = np.array(
+                                                                                                                                                                                                                                    [
+                                                                                                                                                                                                                                        1,1,
+                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                        1])
+                                                                                                                                                                                                                            else:
+                                                                                                                                                                                                                                if inp_shape == 130:
+                                                                                                                                                                                                                                    out = np.array(
+                                                                                                                                                                                                                                        [
+                                                                                                                                                                                                                                            1,1,
+                                                                                                                                                                                                                                            2,
+                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                            13,
+                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                            5,
+                                                                                                                                                                                                                                            1])
+                                                                                                                                                                                                                                else:
+                                                                                                                                                                                                                                    if inp_shape == 18432:
+                                                                                                                                                                                                                                        out = np.array(
+                                                                                                                                                                                                                                            [
+                                                                                                                                                                                                                                                3,
+                                                                                                                                                                                                                                                4,
+                                                                                                                                                                                                                                                4,
+                                                                                                                                                                                                                                                4,2,
+                                                                                                                                                                                                                                                4,
+                                                                                                                                                                                                                                                3,
+                                                                                                                                                                                                                                                4
+                                                                                                                                                                                                                                            ])
+                                                                                                                                                                                                                                    else:
+                                                                                                                                                                                                                                        if inp_shape == 514:
+                                                                                                                                                                                                                                            out = np.array(
+                                                                                                                                                                                                                                                [
+                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                    2,1,
+                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                    257,
+                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                    1])
+                                                                                                                                                                                                                                        else:
+                                                                                                                                                                                                                                            if inp_shape == 34:
+                                                                                                                                                                                                                                                out = np.array(
+                                                                                                                                                                                                                                                    [
+                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                        1,1,
+                                                                                                                                                                                                                                                        2,
+                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                        17,
+                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                        1])
+                                                                                                                                                                                                                                            else:
+                                                                                                                                                                                                                                                if inp_shape == 35:
+                                                                                                                                                                                                                                                    out = np.array(
+                                                                                                                                                                                                                                                        [
+                                                                                                                                                                                                                                                            5,
+                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                            7,1,
+                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                            1])
+                                                                                                                                                                                                                                                else:
+                                                                                                                                                                                                                                                    if inp_shape == 66:
+                                                                                                                                                                                                                                                        out = np.array(
+                                                                                                                                                                                                                                                            [
+                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                3,
+                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                2,11,
+                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                1])
+                                                                                                                                                                                                                                                    else:
+                                                                                                                                                                                                                                                        if inp_shape == 67:
+                                                                                                                                                                                                                                                            out = np.array(
+                                                                                                                                                                                                                                                                [
+                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                    1,1,
+                                                                                                                                                                                                                                                                    67,
+                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                    1])
+                                                                                                                                                                                                                                                        else:
+                                                                                                                                                                                                                                                            if inp_shape == 131:
+                                                                                                                                                                                                                                                                out = np.array(
+                                                                                                                                                                                                                                                                    [
+                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                        1,1,
+                                                                                                                                                                                                                                                                        131,
+                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                        1])
+                                                                                                                                                                                                                                                            else:
+                                                                                                                                                                                                                                                                if inp_shape == 258:
+                                                                                                                                                                                                                                                                    out = np.array(
+                                                                                                                                                                                                                                                                        [
+                                                                                                                                                                                                                                                                            2,1,
+                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                            43,
+                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                            3])
+                                                                                                                                                                                                                                                                else:
+                                                                                                                                                                                                                                                                    if inp_shape == 259:
+                                                                                                                                                                                                                                                                        out = np.array(
+                                                                                                                                                                                                                                                                            [
+                                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                                259,
+                                                                                                                                                                                                                                                                                1,1,
+                                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                                1])
+                                                                                                                                                                                                                                                                    else:
+                                                                                                                                                                                                                                                                        if inp_shape == 515:
+                                                                                                                                                                                                                                                                            out = np.array(
+                                                                                                                                                                                                                                                                                [
+                                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                                    1,1,
+                                                                                                                                                                                                                                                                                    5,
+                                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                                    103,
+                                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                                    1])
+                                                                                                                                                                                                                                                                        else:
+                                                                                                                                                                                                                                                                            if inp_shape == 54:
+                                                                                                                                                                                                                                                                                out = np.array(
+                                                                                                                                                                                                                                                                                    [
+                                                                                                                                                                                                                                                                                        3,
+                                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                                        2,
+                                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                                        3,1,
+                                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                                        3])
+                                                                                                                                                                                                                                                                            else:
+                                                                                                                                                                                                                                                                                if inp_shape == 78:
+                                                                                                                                                                                                                                                                                    out = np.array(
+                                                                                                                                                                                                                                                                                        [
+                                                                                                                                                                                                                                                                                            2,
+                                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                                            3,1,
+                                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                                            13,
+                                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                                            1])
+                                                                                                                                                                                                                                                                                else:
+                                                                                                                                                                                                                                                                                    if inp_shape == 90:
+                                                                                                                                                                                                                                                                                        out = np.array(
+                                                                                                                                                                                                                                                                                            [
+                                                                                                                                                                                                                                                                                                2,1,
+                                                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                                                3,
+                                                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                                                3,
+                                                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                                                5])
+                                                                                                                                                                                                                                                                                    else:
+                                                                                                                                                                                                                                                                                        if inp_shape == 2:
+                                                                                                                                                                                                                                                                                            out = np.array(
+                                                                                                                                                                                                                                                                                                [
+                                                                                                                                                                                                                                                                                                    2,1,
+                                                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                                                    1])
+                                                                                                                                                                                                                                                                                        else:
+                                                                                                                                                                                                                                                                                            if inp_shape == 63:
+                                                                                                                                                                                                                                                                                                out = np.array(
+                                                                                                                                                                                                                                                                                                    [
+                                                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                                                        3,
+                                                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                                                        7,
+                                                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                                                        3,1])
+                                                                                                                                                                                                                                                                                            else:
+                                                                                                                                                                                                                                                                                                if inp_shape == 57:
+                                                                                                                                                                                                                                                                                                    out = np.array(
+                                                                                                                                                                                                                                                                                                        [
+                                                                                                                                                                                                                                                                                                            3,1,
+                                                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                                                            19,
+                                                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                                                            1])
+                                                                                                                                                                                                                                                                                                else:
+                                                                                                                                                                                                                                                                                                    if inp_shape == 69:
+                                                                                                                                                                                                                                                                                                        out = np.array(
+                                                                                                                                                                                                                                                                                                            [
+                                                                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                                                                3,
+                                                                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                                                                23,1,
+                                                                                                                                                                                                                                                                                                                1])
+                                                                                                                                                                                                                                                                                                    else:
+                                                                                                                                                                                                                                                                                                        if inp_shape == 81:
+                                                                                                                                                                                                                                                                                                            out = np.array(
+                                                                                                                                                                                                                                                                                                                [
+                                                                                                                                                                                                                                                                                                                    1,1,
+                                                                                                                                                                                                                                                                                                                    3,
+                                                                                                                                                                                                                                                                                                                    3,
+                                                                                                                                                                                                                                                                                                                    3,
+                                                                                                                                                                                                                                                                                                                    3,
+                                                                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                                                                    1])
+                                                                                                                                                                                                                                                                                                        else:
+                                                                                                                                                                                                                                                                                                            if inp_shape == 93:
+                                                                                                                                                                                                                                                                                                                out = np.array(
+                                                                                                                                                                                                                                                                                                                    [
+                                                                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                                                                        1,1,
+                                                                                                                                                                                                                                                                                                                        3,
+                                                                                                                                                                                                                                                                                                                        31,
+                                                                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                                                                        1])
+                        else:
+                            if split_dimension_core == 9:
+                                if inp_shape == 1048576:
+                                    out = np.array([8, 4, 4, 2, 4, 8, 4, 8, 4])
+                                else:
+                                    if inp_shape == 524288:
+                                        out = np.array([8, 4, 4, 2, 4, 2, 8, 8, 4])
+                                    else:
+                                        if inp_shape == 262144:
+                                            out = np.array([8, 4, 4, 4, 2, 4, 2, 8, 4])
+                                        else:
+                                            if inp_shape == 131072:
+                                                out = np.array([4, 4, 4, 4, 2, 4, 2, 8, 4])
+                                            else:
+                                                if inp_shape == 65536:
+                                                    out = np.array([4, 4, 4, 4, 2, 4, 2, 4, 4])
+                                                else:
+                                                    if inp_shape == 32768:
+                                                        out = np.array([4, 4, 4, 2, 2, 2, 4, 4, 4])
+                                                    else:
+                                                        if inp_shape == 16384:
+                                                            out = np.array([4, 4, 2, 2, 2, 2, 4, 4, 4])
+                                                        else:
+                                                            if inp_shape == 8192:
+                                                                out = np.array([4, 2, 2, 2, 2, 2, 4, 4, 4])
+                                                            else:
+                                                                if inp_shape == 4096:
+                                                                    out = np.array([4, 2, 2, 2, 2, 2, 4, 2, 4])
+                                                                else:
+                                                                    if inp_shape == 2048:
+                                                                        out = np.array([4, 2, 2, 2, 2, 2, 2, 2, 4])
+                                                                    else:
+                                                                        if inp_shape == 1024:
+                                                                            out = np.array([2, 2, 2, 2, 2, 2, 2, 2, 4])
+                                                                        else:
+                                                                            if inp_shape == 512:
+                                                                                out = np.array([2, 2, 2, 2, 2, 2, 2, 2, 2])
+                                                                            else:
+                                                                                if inp_shape == 256:
+                                                                                    out = np.array([1,2, 2, 2, 2, 2, 2, 2, 2])
+                                                                                else:
+                                                                                    if inp_shape == 128:
+                                                                                        out = np.array(
+                                                                                            [1,1, 2, 2, 2, 2, 2, 2, 2])
+                                                                                    else:
+                                                                                        if inp_shape == 64:
+                                                                                            out = np.array(
+                                                                                                [1,1, 1, 2, 2, 2, 2, 2, 2])
+                                                                                        else:
+                                                                                            if inp_shape == 32:
+                                                                                                out = np.array(
+                                                                                                    [1,1, 1, 2, 2, 2, 2, 2,
+                                                                                                     1])
+                                                                                            else:
+                                                                                                if inp_shape == 16:
+                                                                                                    out = np.array(
+                                                                                                        [1,1, 1, 2, 2, 2, 2,
+                                                                                                         1, 1])
+                                                                                                else:
+                                                                                                    if inp_shape == 8:
+                                                                                                        out = np.array(
+                                                                                                            [1,1, 1, 2, 2, 1,
+                                                                                                             2, 1,
+                                                                                                             1])
+                                                                                                    else:
+                                                                                                        if inp_shape == 4:
+                                                                                                            out = np.array(
+                                                                                                                [1,1, 1, 2, 1,
+                                                                                                                 1, 2,
+                                                                                                                 1, 1])
+                                                                                                        else:
+                                                                                                            if inp_shape == 91:
+                                                                                                                out = np.array(
+                                                                                                                    [91, 1,
+                                                                                                                     1,
+                                                                                                                     1, 1,
+                                                                                                                     1,
+                                                                                                                     1, 1, 1])
+                                                                                                            else:
+                                                                                                                if inp_shape == 109:
+                                                                                                                    out = np.array(
+                                                                                                                        [
+                                                                                                                            109,
+                                                                                                                            1,
+                                                                                                                            1,
+                                                                                                                            1,
+                                                                                                                            1,
+                                                                                                                            1,
+                                                                                                                            1,
+                                                                                                                            1, 1])
+                                                                                                                else:
+                                                                                                                    if inp_shape == 12:
+                                                                                                                        out = np.array(
+                                                                                                                            [
+                                                                                                                                1,
+                                                                                                                                2,
+                                                                                                                                2,
+                                                                                                                                3,
+                                                                                                                                1,
+                                                                                                                                1,
+                                                                                                                                1,
+                                                                                                                                1,1])
+                                                                                                                    else:
+                                                                                                                        if inp_shape == 24:
+                                                                                                                            out = np.array(
+                                                                                                                                [
+                                                                                                                                    1,
+                                                                                                                                    2,
+                                                                                                                                    2,
+                                                                                                                                    2,
+                                                                                                                                    3,
+                                                                                                                                    1,
+                                                                                                                                    1,
+                                                                                                                                    1,1])
+                                                                                                                        else:
+                                                                                                                            if inp_shape == 27:
+                                                                                                                                out = np.array(
+                                                                                                                                    [
+                                                                                                                                        1,
+                                                                                                                                        1,
+                                                                                                                                        3,
+                                                                                                                                        3,
+                                                                                                                                        3,
+                                                                                                                                        1,
+                                                                                                                                        1,
+                                                                                                                                        1,1])
+                                                                                                                            else:
+                                                                                                                                if inp_shape == 36:
+                                                                                                                                    out = np.array(
+                                                                                                                                        [
+                                                                                                                                            1,
+                                                                                                                                            3,
+                                                                                                                                            3,
+                                                                                                                                            2,
+                                                                                                                                            2,
+                                                                                                                                            1,
+                                                                                                                                            1,
+                                                                                                                                            1,1])
+                                                                                                                                else:
+                                                                                                                                    if inp_shape == 39:
+                                                                                                                                        out = np.array(
+                                                                                                                                            [
+                                                                                                                                                1,
+                                                                                                                                                1,
+                                                                                                                                                3,
+                                                                                                                                                13,
+                                                                                                                                                1,
+                                                                                                                                                1,
+                                                                                                                                                1,
+                                                                                                                                                1,1])
+                                                                                                                                    else:
+                                                                                                                                        if inp_shape == 42:
+                                                                                                                                            out = np.array(
+                                                                                                                                                [
+                                                                                                                                                    1,
+                                                                                                                                                    1,
+                                                                                                                                                    2,
+                                                                                                                                                    3,
+                                                                                                                                                    7,
+                                                                                                                                                    1,
+                                                                                                                                                    1,
+                                                                                                                                                    1,1])
+                                                                                                                                        else:
+                                                                                                                                            if inp_shape == 45:
+                                                                                                                                                out = np.array(
+                                                                                                                                                    [
+                                                                                                                                                        1,
+                                                                                                                                                        1,
+                                                                                                                                                        5,
+                                                                                                                                                        3,
+                                                                                                                                                        3,
+                                                                                                                                                        1,
+                                                                                                                                                        1,
+                                                                                                                                                        1,1])
+                                                                                                                                            else:
+                                                                                                                                                if inp_shape == 48:
+                                                                                                                                                    out = np.array(
+                                                                                                                                                        [
+                                                                                                                                                            1,
+                                                                                                                                                            2,
+                                                                                                                                                            2,
+                                                                                                                                                            3,
+                                                                                                                                                            2,
+                                                                                                                                                            2,
+                                                                                                                                                            1,
+                                                                                                                                                            1,1])
+                                                                                                                                                else:
+                                                                                                                                                    if inp_shape == 51:
+                                                                                                                                                        out = np.array(
+                                                                                                                                                            [
+                                                                                                                                                                1,
+                                                                                                                                                                1,
+                                                                                                                                                                3,
+                                                                                                                                                                17,
+                                                                                                                                                                1,
+                                                                                                                                                                1,
+                                                                                                                                                                1,
+                                                                                                                                                                1,1])
+                                                                                                                                                    else:
+                                                                                                                                                        if inp_shape == 72:
+                                                                                                                                                            out = np.array(
+                                                                                                                                                                [
+                                                                                                                                                                    1,
+                                                                                                                                                                    2,
+                                                                                                                                                                    2,
+                                                                                                                                                                    3,
+                                                                                                                                                                    2,
+                                                                                                                                                                    3,
+                                                                                                                                                                    1,
+                                                                                                                                                                    1,1])
+                                                                                                                                                        else:
+                                                                                                                                                            if inp_shape == 75:
+                                                                                                                                                                out = np.array(
+                                                                                                                                                                    [
+                                                                                                                                                                        1,
+                                                                                                                                                                        1,
+                                                                                                                                                                        3,
+                                                                                                                                                                        5,
+                                                                                                                                                                        5,
+                                                                                                                                                                        1,
+                                                                                                                                                                        1,
+                                                                                                                                                                        1,1])
+                                                                                                                                                            else:
+                                                                                                                                                                if inp_shape == 84:
+                                                                                                                                                                    out = np.array(
+                                                                                                                                                                        [
+                                                                                                                                                                            1,
+                                                                                                                                                                            2,
+                                                                                                                                                                            2,
+                                                                                                                                                                            3,
+                                                                                                                                                                            7,
+                                                                                                                                                                            1,
+                                                                                                                                                                            1,
+                                                                                                                                                                            1,1])
+                                                                                                                                                                else:
+                                                                                                                                                                    if inp_shape == 87:
+                                                                                                                                                                        out = np.array(
+                                                                                                                                                                            [
+                                                                                                                                                                                1,
+                                                                                                                                                                                1,
+                                                                                                                                                                                3,
+                                                                                                                                                                                29,
+                                                                                                                                                                                1,
+                                                                                                                                                                                1,
+                                                                                                                                                                                1,
+                                                                                                                                                                                1,1])
+                                                                                                                                                                    else:
+                                                                                                                                                                        if inp_shape == 3:
+                                                                                                                                                                            out = np.array(
+                                                                                                                                                                                [
+                                                                                                                                                                                    3,
+                                                                                                                                                                                    1,
+                                                                                                                                                                                    1,
+                                                                                                                                                                                    1,
+                                                                                                                                                                                    1,
+                                                                                                                                                                                    1,
+                                                                                                                                                                                    1,
+                                                                                                                                                                                    1,1])
+                                                                                                                                                                        else:
+                                                                                                                                                                            if inp_shape == 26:
+                                                                                                                                                                                out = np.array(
+                                                                                                                                                                                    [
+                                                                                                                                                                                        1,
+                                                                                                                                                                                        1,
+                                                                                                                                                                                        1,
+                                                                                                                                                                                        2,
+                                                                                                                                                                                        13,
+                                                                                                                                                                                        1,
+                                                                                                                                                                                        1,
+                                                                                                                                                                                        1,1])
+                                                                                                                                                                            else:
+                                                                                                                                                                                if inp_shape == 50:
+                                                                                                                                                                                    out = np.array(
+                                                                                                                                                                                        [
+                                                                                                                                                                                            1,1,
+                                                                                                                                                                                            1,
+                                                                                                                                                                                            1,
+                                                                                                                                                                                            2,
+                                                                                                                                                                                            5,
+                                                                                                                                                                                            5,
+                                                                                                                                                                                            1,
+                                                                                                                                                                                            1])
+                                                                                                                                                                                else:
+                                                                                                                                                                                    if inp_shape == 38:
+                                                                                                                                                                                        out = np.array(
+                                                                                                                                                                                            [
+                                                                                                                                                                                                1,1,
+                                                                                                                                                                                                1,
+                                                                                                                                                                                                2,
+                                                                                                                                                                                                1,
+                                                                                                                                                                                                19,
+                                                                                                                                                                                                1,
+                                                                                                                                                                                                1,
+                                                                                                                                                                                                1])
+                                                                                                                                                                                    else:
+                                                                                                                                                                                        if inp_shape == 60:
+                                                                                                                                                                                            out = np.array(
+                                                                                                                                                                                                [
+                                                                                                                                                                                                    1,
+                                                                                                                                                                                                    5,
+                                                                                                                                                                                                    1,
+                                                                                                                                                                                                    1,
+                                                                                                                                                                                                    2,
+                                                                                                                                                                                                    2,1,
+                                                                                                                                                                                                    3,
+                                                                                                                                                                                                    1])
+                                                                                                                                                                                        else:
+                                                                                                                                                                                            if inp_shape == 62:
+                                                                                                                                                                                                out = np.array(
+                                                                                                                                                                                                    [
+                                                                                                                                                                                                        1,
+                                                                                                                                                                                                        2,
+                                                                                                                                                                                                        1,
+                                                                                                                                                                                                        1,
+                                                                                                                                                                                                        31,1,
+                                                                                                                                                                                                        1,
+                                                                                                                                                                                                        1,
+                                                                                                                                                                                                        1])
+                                                                                                                                                                                            else:
+                                                                                                                                                                                                if inp_shape == 74:
+                                                                                                                                                                                                    out = np.array(
+                                                                                                                                                                                                        [
+                                                                                                                                                                                                            1,
+                                                                                                                                                                                                            1,
+                                                                                                                                                                                                            2,
+                                                                                                                                                                                                            1,1,
+                                                                                                                                                                                                            37,
+                                                                                                                                                                                                            1,
+                                                                                                                                                                                                            1,
+                                                                                                                                                                                                            1])
+                                                                                                                                                                                                else:
+                                                                                                                                                                                                    if inp_shape == 86:
+                                                                                                                                                                                                        out = np.array(
+                                                                                                                                                                                                            [
+                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                2,
+                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                1,1,
+                                                                                                                                                                                                                43,
+                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                1])
+                                                                                                                                                                                                    else:
+                                                                                                                                                                                                        if inp_shape == 38:
+                                                                                                                                                                                                            out = np.array(
+                                                                                                                                                                                                                [
+                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                    2,
+                                                                                                                                                                                                                    1,1,
+                                                                                                                                                                                                                    19,
+                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                    1])
+                                                                                                                                                                                                        else:
+                                                                                                                                                                                                            if inp_shape == 44:
+                                                                                                                                                                                                                out = np.array(
+                                                                                                                                                                                                                    [
+                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                        2,
+                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                        2,1,
+                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                        11,
+                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                        1])
+                                                                                                                                                                                                            else:
+                                                                                                                                                                                                                if inp_shape == 56:
+                                                                                                                                                                                                                    out = np.array(
+                                                                                                                                                                                                                        [
+                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                            2,
+                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                            2,
+                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                            7,1,
+                                                                                                                                                                                                                            2,
+                                                                                                                                                                                                                            1])
+                                                                                                                                                                                                                else:
+                                                                                                                                                                                                                    if inp_shape == 68:
+                                                                                                                                                                                                                        out = np.array(
+                                                                                                                                                                                                                            [
+                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                2,
+                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                17,1,
+                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                2,
+                                                                                                                                                                                                                                1])
+                                                                                                                                                                                                                    else:
+                                                                                                                                                                                                                        if inp_shape == 80:
+                                                                                                                                                                                                                            out = np.array(
+                                                                                                                                                                                                                                [
+                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                    2,1,
+                                                                                                                                                                                                                                    2,
+                                                                                                                                                                                                                                    2,
+                                                                                                                                                                                                                                    5,
+                                                                                                                                                                                                                                    2,
+                                                                                                                                                                                                                                    1])
+                                                                                                                                                                                                                        else:
+                                                                                                                                                                                                                            if inp_shape == 92:
+                                                                                                                                                                                                                                out = np.array(
+                                                                                                                                                                                                                                    [
+                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                        2,
+                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                        23,
+                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                        2,
+                                                                                                                                                                                                                                        1,1])
+                                                                                                                                                                                                                            else:
+                                                                                                                                                                                                                                if inp_shape == 1:
+                                                                                                                                                                                                                                    out = np.array(
+                                                                                                                                                                                                                                        [
+                                                                                                                                                                                                                                            1,1,
+                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                            1])
+                                                                                                                                                                                                                                else:
+                                                                                                                                                                                                                                    if inp_shape == 130:
+                                                                                                                                                                                                                                        out = np.array(
+                                                                                                                                                                                                                                            [
+                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                2,
+                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                13,
+                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                5,1,
+                                                                                                                                                                                                                                                1])
+                                                                                                                                                                                                                                    else:
+                                                                                                                                                                                                                                        if inp_shape == 18432:
+                                                                                                                                                                                                                                            out = np.array(
+                                                                                                                                                                                                                                                [
+                                                                                                                                                                                                                                                    3,
+                                                                                                                                                                                                                                                    4,
+                                                                                                                                                                                                                                                    4,
+                                                                                                                                                                                                                                                    4,
+                                                                                                                                                                                                                                                    2,
+                                                                                                                                                                                                                                                    4,
+                                                                                                                                                                                                                                                    3,
+                                                                                                                                                                                                                                                    2,2
+                                                                                                                                                                                                                                                ])
+                                                                                                                                                                                                                                        else:
+                                                                                                                                                                                                                                            if inp_shape == 514:
+                                                                                                                                                                                                                                                out = np.array(
+                                                                                                                                                                                                                                                    [
+                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                        2,
+                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                        257,1,
+                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                        1])
+                                                                                                                                                                                                                                            else:
+                                                                                                                                                                                                                                                if inp_shape == 34:
+                                                                                                                                                                                                                                                    out = np.array(
+                                                                                                                                                                                                                                                        [
+                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                            2,
+                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                            17,1,
+                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                            1])
+                                                                                                                                                                                                                                                else:
+                                                                                                                                                                                                                                                    if inp_shape == 35:
+                                                                                                                                                                                                                                                        out = np.array(
+                                                                                                                                                                                                                                                            [
+                                                                                                                                                                                                                                                                5,
+                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                7,1,
+                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                1])
+                                                                                                                                                                                                                                                    else:
+                                                                                                                                                                                                                                                        if inp_shape == 66:
+                                                                                                                                                                                                                                                            out = np.array(
+                                                                                                                                                                                                                                                                [
+                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                    1,1,
+                                                                                                                                                                                                                                                                    3,
+                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                    2,
+                                                                                                                                                                                                                                                                    11,
+                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                    1])
+                                                                                                                                                                                                                                                        else:
+                                                                                                                                                                                                                                                            if inp_shape == 67:
+                                                                                                                                                                                                                                                                out = np.array(
+                                                                                                                                                                                                                                                                    [
+                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                        67,1,
+                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                        1])
+                                                                                                                                                                                                                                                            else:
+                                                                                                                                                                                                                                                                if inp_shape == 131:
+                                                                                                                                                                                                                                                                    out = np.array(
+                                                                                                                                                                                                                                                                        [
+                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                            131,1,
+                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                            1])
+                                                                                                                                                                                                                                                                else:
+                                                                                                                                                                                                                                                                    if inp_shape == 258:
+                                                                                                                                                                                                                                                                        out = np.array(
+                                                                                                                                                                                                                                                                            [
+                                                                                                                                                                                                                                                                                2,1,
+                                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                                43,
+                                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                                3])
+                                                                                                                                                                                                                                                                    else:
+                                                                                                                                                                                                                                                                        if inp_shape == 259:
+                                                                                                                                                                                                                                                                            out = np.array(
+                                                                                                                                                                                                                                                                                [
+                                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                                    259,1,
+                                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                                    1])
+                                                                                                                                                                                                                                                                        else:
+                                                                                                                                                                                                                                                                            if inp_shape == 515:
+                                                                                                                                                                                                                                                                                out = np.array(
+                                                                                                                                                                                                                                                                                    [
+                                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                                        5,
+                                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                                        103,1,
+                                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                                        1])
+                                                                                                                                                                                                                                                                            else:
+                                                                                                                                                                                                                                                                                if inp_shape == 54:
+                                                                                                                                                                                                                                                                                    out = np.array(
+                                                                                                                                                                                                                                                                                        [
+                                                                                                                                                                                                                                                                                            3,
+                                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                                            2,1,
+                                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                                            3,
+                                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                                            3])
+                                                                                                                                                                                                                                                                                else:
+                                                                                                                                                                                                                                                                                    if inp_shape == 78:
+                                                                                                                                                                                                                                                                                        out = np.array(
+                                                                                                                                                                                                                                                                                            [
+                                                                                                                                                                                                                                                                                                2,1,
+                                                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                                                3,
+                                                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                                                13,
+                                                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                                                1])
+                                                                                                                                                                                                                                                                                    else:
+                                                                                                                                                                                                                                                                                        if inp_shape == 90:
+                                                                                                                                                                                                                                                                                            out = np.array(
+                                                                                                                                                                                                                                                                                                [
+                                                                                                                                                                                                                                                                                                    2,
+                                                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                                                    3,
+                                                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                                                    3,1,
+                                                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                                                    5])
+                                                                                                                                                                                                                                                                                        else:
+                                                                                                                                                                                                                                                                                            if inp_shape == 2:
+                                                                                                                                                                                                                                                                                                out = np.array(
+                                                                                                                                                                                                                                                                                                    [
+                                                                                                                                                                                                                                                                                                        2,1,
+                                                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                                                        1])
+                                                                                                                                                                                                                                                                                            else:
+                                                                                                                                                                                                                                                                                                if inp_shape == 63:
+                                                                                                                                                                                                                                                                                                    out = np.array(
+                                                                                                                                                                                                                                                                                                        [
+                                                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                                                            3,
+                                                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                                                            7,
+                                                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                                                            3,1,
+                                                                                                                                                                                                                                                                                                            1])
+                                                                                                                                                                                                                                                                                                else:
+                                                                                                                                                                                                                                                                                                    if inp_shape == 57:
+                                                                                                                                                                                                                                                                                                        out = np.array(
+                                                                                                                                                                                                                                                                                                            [
+                                                                                                                                                                                                                                                                                                                3,1,
+                                                                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                                                                19,
+                                                                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                                                                1])
+                                                                                                                                                                                                                                                                                                    else:
+                                                                                                                                                                                                                                                                                                        if inp_shape == 69:
+                                                                                                                                                                                                                                                                                                            out = np.array(
+                                                                                                                                                                                                                                                                                                                [
+                                                                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                                                                    3,
+                                                                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                                                                    23,1,
+                                                                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                                                                    1])
+                                                                                                                                                                                                                                                                                                        else:
+                                                                                                                                                                                                                                                                                                            if inp_shape == 81:
+                                                                                                                                                                                                                                                                                                                out = np.array(
+                                                                                                                                                                                                                                                                                                                    [
+                                                                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                                                                        3,1,
+                                                                                                                                                                                                                                                                                                                        3,
+                                                                                                                                                                                                                                                                                                                        3,
+                                                                                                                                                                                                                                                                                                                        3,
+                                                                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                                                                        1])
+                                                                                                                                                                                                                                                                                                            else:
+                                                                                                                                                                                                                                                                                                                if inp_shape == 93:
+                                                                                                                                                                                                                                                                                                                    out = np.array(
+                                                                                                                                                                                                                                                                                                                        [
+                                                                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                                                                            3,1,
+                                                                                                                                                                                                                                                                                                                            31,
+                                                                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                                                                            1])
+
+
+                            else:
+                                if split_dimension_core == 10:
+                                    if inp_shape == 1048576:
+                                        out = np.array([8, 4, 4, 2, 4, 4, 2, 4, 8, 4])
+                                    else:
+                                        if inp_shape == 524288:
+                                            out = np.array([8, 4, 4, 2, 4, 2, 4, 2, 8, 4])
+                                        else:
+                                            if inp_shape == 262144:
+                                                out = np.array([8, 4, 4, 4, 2, 4, 2, 4, 2, 4])
+                                            else:
+                                                if inp_shape == 131072:
+                                                    out = np.array([4, 4, 4, 4, 2, 4, 2, 4, 2, 4])
+                                                else:
+                                                    if inp_shape == 65536:
+                                                        out = np.array([4, 4, 4, 4, 2, 2, 2, 2, 4, 4])
+                                                    else:
+                                                        if inp_shape == 32768:
+                                                            out = np.array([4, 4, 2, 2, 2, 2, 2, 4, 4, 4])
+                                                        else:
+                                                            if inp_shape == 16384:
+                                                                out = np.array([4, 4, 2, 2, 2, 2, 2, 2, 4, 4])
+                                                            else:
+                                                                if inp_shape == 8192:
+                                                                    out = np.array([4, 2, 2, 2, 2, 2, 2, 2, 4, 4])
+                                                                else:
+                                                                    if inp_shape == 4096:
+                                                                        out = np.array([4, 2, 2, 2, 2, 2, 2, 2, 2, 4])
+                                                                    else:
+                                                                        if inp_shape == 2048:
+                                                                            out = np.array([4, 2, 2, 2, 2, 2, 2, 2, 2, 2])
+                                                                        else:
+                                                                            if inp_shape == 1024:
+                                                                                out = np.array([2, 2, 2, 2, 2, 2, 2, 2, 2, 2])
+                                                                            else:
+                                                                                if inp_shape == 512:
+                                                                                    out = np.array(
+                                                                                        [2, 2, 2, 2, 2, 2, 2, 1,2, 2])
+                                                                                else:
+                                                                                    if inp_shape == 256:
+                                                                                        out = np.array(
+                                                                                            [1, 2, 2, 2, 2, 1,2, 2, 2, 2])
+                                                                                    else:
+                                                                                        if inp_shape == 128:
+                                                                                            out = np.array(
+                                                                                                [1, 1, 2, 2, 2, 1,2, 2, 2, 2])
+                                                                                        else:
+                                                                                            if inp_shape == 64:
+                                                                                                out = np.array(
+                                                                                                    [1, 1, 1, 2,1, 2, 2, 2, 2,
+                                                                                                     2])
+                                                                                            else:
+                                                                                                if inp_shape == 32:
+                                                                                                    out = np.array(
+                                                                                                        [1, 1, 1, 2, 2,1, 2,
+                                                                                                         2, 2,
+                                                                                                         1])
+                                                                                                else:
+                                                                                                    if inp_shape == 16:
+                                                                                                        out = np.array(
+                                                                                                            [1, 1, 1, 2, 1,2,
+                                                                                                             2, 2,
+                                                                                                             1, 1])
+                                                                                                    else:
+                                                                                                        if inp_shape == 8:
+                                                                                                            out = np.array(
+                                                                                                                [1, 1, 1, 2,
+                                                                                                                 1,2, 1,
+                                                                                                                 2, 1,
+                                                                                                                 1])
+                                                                                                        else:
+                                                                                                            if inp_shape == 4:
+                                                                                                                out = np.array(
+                                                                                                                    [1, 1,
+                                                                                                                     1, 2,1,
+                                                                                                                     1,
+                                                                                                                     1, 2,
+                                                                                                                     1, 1])
+                                                                                                            else:
+                                                                                                                if inp_shape == 91:
+                                                                                                                    out = np.array(
+                                                                                                                        [91,
+                                                                                                                         1,
+                                                                                                                         1,
+                                                                                                                         1,
+                                                                                                                         1,
+                                                                                                                         1,
+                                                                                                                         1,
+                                                                                                                         1,1,
+                                                                                                                         1])
+                                                                                                                else:
+                                                                                                                    if inp_shape == 109:
+                                                                                                                        out = np.array(
+                                                                                                                            [
+                                                                                                                                109,
+                                                                                                                                1,
+                                                                                                                                1,
+                                                                                                                                1,
+                                                                                                                                1,
+                                                                                                                                1,
+                                                                                                                                1,
+                                                                                                                                1,1,
+                                                                                                                                1])
+                                                                                                                    else:
+                                                                                                                        if inp_shape == 12:
+                                                                                                                            out = np.array(
+                                                                                                                                [
+                                                                                                                                    1,
+                                                                                                                                    2,
+                                                                                                                                    2,
+                                                                                                                                    3,
+                                                                                                                                    1,
+                                                                                                                                    1,
+                                                                                                                                    1,
+                                                                                                                                    1,
+                                                                                                                                    1,1])
+                                                                                                                        else:
+                                                                                                                            if inp_shape == 24:
+                                                                                                                                out = np.array(
+                                                                                                                                    [
+                                                                                                                                        1,
+                                                                                                                                        2,
+                                                                                                                                        2,
+                                                                                                                                        2,
+                                                                                                                                        3,
+                                                                                                                                        1,
+                                                                                                                                        1,
+                                                                                                                                        1,
+                                                                                                                                        1,1])
+                                                                                                                            else:
+                                                                                                                                if inp_shape == 27:
+                                                                                                                                    out = np.array(
+                                                                                                                                        [
+                                                                                                                                            1,
+                                                                                                                                            1,
+                                                                                                                                            3,
+                                                                                                                                            3,
+                                                                                                                                            3,
+                                                                                                                                            1,
+                                                                                                                                            1,
+                                                                                                                                            1,
+                                                                                                                                            1,1])
+                                                                                                                                else:
+                                                                                                                                    if inp_shape == 36:
+                                                                                                                                        out = np.array(
+                                                                                                                                            [
+                                                                                                                                                1,
+                                                                                                                                                3,
+                                                                                                                                                3,
+                                                                                                                                                2,
+                                                                                                                                                2,
+                                                                                                                                                1,
+                                                                                                                                                1,
+                                                                                                                                                1,
+                                                                                                                                                1,1])
+                                                                                                                                    else:
+                                                                                                                                        if inp_shape == 39:
+                                                                                                                                            out = np.array(
+                                                                                                                                                [
+                                                                                                                                                    1,
+                                                                                                                                                    1,
+                                                                                                                                                    3,
+                                                                                                                                                    13,
+                                                                                                                                                    1,
+                                                                                                                                                    1,
+                                                                                                                                                    1,
+                                                                                                                                                    1,
+                                                                                                                                                    1,1])
+                                                                                                                                        else:
+                                                                                                                                            if inp_shape == 42:
+                                                                                                                                                out = np.array(
+                                                                                                                                                    [
+                                                                                                                                                        1,
+                                                                                                                                                        1,
+                                                                                                                                                        2,
+                                                                                                                                                        3,
+                                                                                                                                                        7,
+                                                                                                                                                        1,
+                                                                                                                                                        1,
+                                                                                                                                                        1,
+                                                                                                                                                        1,1])
+                                                                                                                                            else:
+                                                                                                                                                if inp_shape == 45:
+                                                                                                                                                    out = np.array(
+                                                                                                                                                        [
+                                                                                                                                                            1,
+                                                                                                                                                            1,
+                                                                                                                                                            5,
+                                                                                                                                                            3,
+                                                                                                                                                            3,
+                                                                                                                                                            1,
+                                                                                                                                                            1,
+                                                                                                                                                            1,
+                                                                                                                                                            1,1])
+                                                                                                                                                else:
+                                                                                                                                                    if inp_shape == 48:
+                                                                                                                                                        out = np.array(
+                                                                                                                                                            [
+                                                                                                                                                                1,
+                                                                                                                                                                2,
+                                                                                                                                                                2,
+                                                                                                                                                                3,
+                                                                                                                                                                2,
+                                                                                                                                                                2,
+                                                                                                                                                                1,
+                                                                                                                                                                1,
+                                                                                                                                                                1,1])
+                                                                                                                                                    else:
+                                                                                                                                                        if inp_shape == 51:
+                                                                                                                                                            out = np.array(
+                                                                                                                                                                [
+                                                                                                                                                                    1,
+                                                                                                                                                                    1,
+                                                                                                                                                                    3,
+                                                                                                                                                                    17,
+                                                                                                                                                                    1,
+                                                                                                                                                                    1,
+                                                                                                                                                                    1,
+                                                                                                                                                                    1,
+                                                                                                                                                                    1,1])
+                                                                                                                                                        else:
+                                                                                                                                                            if inp_shape == 72:
+                                                                                                                                                                out = np.array(
+                                                                                                                                                                    [
+                                                                                                                                                                        1,
+                                                                                                                                                                        2,
+                                                                                                                                                                        2,
+                                                                                                                                                                        3,
+                                                                                                                                                                        2,
+                                                                                                                                                                        3,
+                                                                                                                                                                        1,
+                                                                                                                                                                        1,
+                                                                                                                                                                        1,1])
+                                                                                                                                                            else:
+                                                                                                                                                                if inp_shape == 75:
+                                                                                                                                                                    out = np.array(
+                                                                                                                                                                        [
+                                                                                                                                                                            1,
+                                                                                                                                                                            1,
+                                                                                                                                                                            3,
+                                                                                                                                                                            5,
+                                                                                                                                                                            5,
+                                                                                                                                                                            1,
+                                                                                                                                                                            1,
+                                                                                                                                                                            1,
+                                                                                                                                                                            1,1])
+                                                                                                                                                                else:
+                                                                                                                                                                    if inp_shape == 84:
+                                                                                                                                                                        out = np.array(
+                                                                                                                                                                            [
+                                                                                                                                                                                1,
+                                                                                                                                                                                2,
+                                                                                                                                                                                2,
+                                                                                                                                                                                3,
+                                                                                                                                                                                7,
+                                                                                                                                                                                1,
+                                                                                                                                                                                1,
+                                                                                                                                                                                1,
+                                                                                                                                                                                1,1])
+                                                                                                                                                                    else:
+                                                                                                                                                                        if inp_shape == 87:
+                                                                                                                                                                            out = np.array(
+                                                                                                                                                                                [
+                                                                                                                                                                                    1,
+                                                                                                                                                                                    1,
+                                                                                                                                                                                    3,
+                                                                                                                                                                                    29,
+                                                                                                                                                                                    1,
+                                                                                                                                                                                    1,
+                                                                                                                                                                                    1,
+                                                                                                                                                                                    1,
+                                                                                                                                                                                    1,1])
+                                                                                                                                                                        else:
+                                                                                                                                                                            if inp_shape == 3:
+                                                                                                                                                                                out = np.array(
+                                                                                                                                                                                    [
+                                                                                                                                                                                        3,
+                                                                                                                                                                                        1,
+                                                                                                                                                                                        1,
+                                                                                                                                                                                        1,
+                                                                                                                                                                                        1,
+                                                                                                                                                                                        1,
+                                                                                                                                                                                        1,
+                                                                                                                                                                                        1,
+                                                                                                                                                                                        1,1])
+                                                                                                                                                                            else:
+                                                                                                                                                                                if inp_shape == 26:
+                                                                                                                                                                                    out = np.array(
+                                                                                                                                                                                        [
+                                                                                                                                                                                            1,
+                                                                                                                                                                                            1,
+                                                                                                                                                                                            1,
+                                                                                                                                                                                            2,
+                                                                                                                                                                                            13,
+                                                                                                                                                                                            1,
+                                                                                                                                                                                            1,
+                                                                                                                                                                                            1,
+                                                                                                                                                                                            1,1])
+                                                                                                                                                                                else:
+                                                                                                                                                                                    if inp_shape == 50:
+                                                                                                                                                                                        out = np.array(
+                                                                                                                                                                                            [
+                                                                                                                                                                                                1,1,
+                                                                                                                                                                                                1,
+                                                                                                                                                                                                1,
+                                                                                                                                                                                                1,
+                                                                                                                                                                                                2,
+                                                                                                                                                                                                5,
+                                                                                                                                                                                                5,
+                                                                                                                                                                                                1,
+                                                                                                                                                                                                1])
+                                                                                                                                                                                    else:
+                                                                                                                                                                                        if inp_shape == 38:
+                                                                                                                                                                                            out = np.array(
+                                                                                                                                                                                                [
+                                                                                                                                                                                                    1,
+                                                                                                                                                                                                    1,
+                                                                                                                                                                                                    1,
+                                                                                                                                                                                                    2,
+                                                                                                                                                                                                    1,
+                                                                                                                                                                                                    19,1,
+                                                                                                                                                                                                    1,
+                                                                                                                                                                                                    1,
+                                                                                                                                                                                                    1])
+                                                                                                                                                                                        else:
+                                                                                                                                                                                            if inp_shape == 60:
+                                                                                                                                                                                                out = np.array(
+                                                                                                                                                                                                    [
+                                                                                                                                                                                                        1,
+                                                                                                                                                                                                        5,
+                                                                                                                                                                                                        1,
+                                                                                                                                                                                                        1,
+                                                                                                                                                                                                        2,1,
+                                                                                                                                                                                                        2,
+                                                                                                                                                                                                        1,
+                                                                                                                                                                                                        3,
+                                                                                                                                                                                                        1])
+                                                                                                                                                                                            else:
+                                                                                                                                                                                                if inp_shape == 62:
+                                                                                                                                                                                                    out = np.array(
+                                                                                                                                                                                                        [
+                                                                                                                                                                                                            1,
+                                                                                                                                                                                                            2,
+                                                                                                                                                                                                            1,
+                                                                                                                                                                                                            1,
+                                                                                                                                                                                                            31,1,
+                                                                                                                                                                                                            1,
+                                                                                                                                                                                                            1,
+                                                                                                                                                                                                            1,
+                                                                                                                                                                                                            1])
+                                                                                                                                                                                                else:
+                                                                                                                                                                                                    if inp_shape == 74:
+                                                                                                                                                                                                        out = np.array(
+                                                                                                                                                                                                            [
+                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                1,1,
+                                                                                                                                                                                                                2,
+                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                37,
+                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                1])
+                                                                                                                                                                                                    else:
+                                                                                                                                                                                                        if inp_shape == 86:
+                                                                                                                                                                                                            out = np.array(
+                                                                                                                                                                                                                [
+                                                                                                                                                                                                                    1,1,
+                                                                                                                                                                                                                    2,
+                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                    43,
+                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                    1])
+                                                                                                                                                                                                        else:
+                                                                                                                                                                                                            if inp_shape == 38:
+                                                                                                                                                                                                                out = np.array(
+                                                                                                                                                                                                                    [
+                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                        1,1,
+                                                                                                                                                                                                                        2,
+                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                        19,
+                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                        1])
+                                                                                                                                                                                                            else:
+                                                                                                                                                                                                                if inp_shape == 44:
+                                                                                                                                                                                                                    out = np.array(
+                                                                                                                                                                                                                        [
+                                                                                                                                                                                                                            1,1,
+                                                                                                                                                                                                                            2,
+                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                            2,
+                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                            11,
+                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                            1])
+                                                                                                                                                                                                                else:
+                                                                                                                                                                                                                    if inp_shape == 56:
+                                                                                                                                                                                                                        out = np.array(
+                                                                                                                                                                                                                            [
+                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                2,
+                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                2,
+                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                7,
+                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                2,1,
+                                                                                                                                                                                                                                1])
+                                                                                                                                                                                                                    else:
+                                                                                                                                                                                                                        if inp_shape == 68:
+                                                                                                                                                                                                                            out = np.array(
+                                                                                                                                                                                                                                [
+                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                    2,
+                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                    17,
+                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                    2,1,
+                                                                                                                                                                                                                                    1])
+                                                                                                                                                                                                                        else:
+                                                                                                                                                                                                                            if inp_shape == 80:
+                                                                                                                                                                                                                                out = np.array(
+                                                                                                                                                                                                                                    [
+                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                        2,
+                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                        2,
+                                                                                                                                                                                                                                        2,1,
+                                                                                                                                                                                                                                        5,
+                                                                                                                                                                                                                                        2,
+                                                                                                                                                                                                                                        1])
+                                                                                                                                                                                                                            else:
+                                                                                                                                                                                                                                if inp_shape == 92:
+                                                                                                                                                                                                                                    out = np.array(
+                                                                                                                                                                                                                                        [
+                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                            2,
+                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                            23,1,
+                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                            2,
+                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                            1])
+                                                                                                                                                                                                                                else:
+                                                                                                                                                                                                                                    if inp_shape == 1:
+                                                                                                                                                                                                                                        out = np.array(
+                                                                                                                                                                                                                                            [
+                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                1,1,
+                                                                                                                                                                                                                                                1])
+                                                                                                                                                                                                                                    else:
+                                                                                                                                                                                                                                        if inp_shape == 130:
+                                                                                                                                                                                                                                            out = np.array(
+                                                                                                                                                                                                                                                [
+                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                    2,
+                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                    13,1,
+                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                    5,
+                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                    1])
+                                                                                                                                                                                                                                        else:
+                                                                                                                                                                                                                                            if inp_shape == 18432:
+                                                                                                                                                                                                                                                out = np.array(
+                                                                                                                                                                                                                                                    [
+                                                                                                                                                                                                                                                        3,
+                                                                                                                                                                                                                                                        2,2,
+                                                                                                                                                                                                                                                        4,
+                                                                                                                                                                                                                                                        4,
+                                                                                                                                                                                                                                                        2,
+                                                                                                                                                                                                                                                        4,
+                                                                                                                                                                                                                                                        3,
+                                                                                                                                                                                                                                                        2,
+                                                                                                                                                                                                                                                        2
+                                                                                                                                                                                                                                                    ])
+                                                                                                                                                                                                                                            else:
+                                                                                                                                                                                                                                                if inp_shape == 514:
+                                                                                                                                                                                                                                                    out = np.array(
+                                                                                                                                                                                                                                                        [
+                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                            2,1,
+                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                            257,
+                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                            1])
+                                                                                                                                                                                                                                                else:
+                                                                                                                                                                                                                                                    if inp_shape == 34:
+                                                                                                                                                                                                                                                        out = np.array(
+                                                                                                                                                                                                                                                            [
+                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                2,
+                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                17,1,
+                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                1])
+                                                                                                                                                                                                                                                    else:
+                                                                                                                                                                                                                                                        if inp_shape == 35:
+                                                                                                                                                                                                                                                            out = np.array(
+                                                                                                                                                                                                                                                                [
+                                                                                                                                                                                                                                                                    5,1,
+                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                    7,
+                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                    1])
+                                                                                                                                                                                                                                                        else:
+                                                                                                                                                                                                                                                            if inp_shape == 66:
+                                                                                                                                                                                                                                                                out = np.array(
+                                                                                                                                                                                                                                                                    [
+                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                        3,
+                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                        2,11,
+                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                        1])
+                                                                                                                                                                                                                                                            else:
+                                                                                                                                                                                                                                                                if inp_shape == 67:
+                                                                                                                                                                                                                                                                    out = np.array(
+                                                                                                                                                                                                                                                                        [
+                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                            67,1,
+                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                            1])
+                                                                                                                                                                                                                                                                else:
+                                                                                                                                                                                                                                                                    if inp_shape == 131:
+                                                                                                                                                                                                                                                                        out = np.array(
+                                                                                                                                                                                                                                                                            [
+                                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                                131,1,
+                                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                                1])
+                                                                                                                                                                                                                                                                    else:
+                                                                                                                                                                                                                                                                        if inp_shape == 258:
+                                                                                                                                                                                                                                                                            out = np.array(
+                                                                                                                                                                                                                                                                                [
+                                                                                                                                                                                                                                                                                    2,
+                                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                                    43,1,
+                                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                                    3])
+                                                                                                                                                                                                                                                                        else:
+                                                                                                                                                                                                                                                                            if inp_shape == 259:
+                                                                                                                                                                                                                                                                                out = np.array(
+                                                                                                                                                                                                                                                                                    [
+                                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                                        259,
+                                                                                                                                                                                                                                                                                        1,1,
+                                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                                        1])
+                                                                                                                                                                                                                                                                            else:
+                                                                                                                                                                                                                                                                                if inp_shape == 515:
+                                                                                                                                                                                                                                                                                    out = np.array(
+                                                                                                                                                                                                                                                                                        [
+                                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                                            5,
+                                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                                            103,1,
+                                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                                            1])
+                                                                                                                                                                                                                                                                                else:
+                                                                                                                                                                                                                                                                                    if inp_shape == 54:
+                                                                                                                                                                                                                                                                                        out = np.array(
+                                                                                                                                                                                                                                                                                            [
+                                                                                                                                                                                                                                                                                                3,
+                                                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                                                2,
+                                                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                                                3,
+                                                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                                                1,1,
+                                                                                                                                                                                                                                                                                                3])
+                                                                                                                                                                                                                                                                                    else:
+                                                                                                                                                                                                                                                                                        if inp_shape == 78:
+                                                                                                                                                                                                                                                                                            out = np.array(
+                                                                                                                                                                                                                                                                                                [
+                                                                                                                                                                                                                                                                                                    2,1,
+                                                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                                                    3,
+                                                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                                                    13,
+                                                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                                                    1])
+                                                                                                                                                                                                                                                                                        else:
+                                                                                                                                                                                                                                                                                            if inp_shape == 90:
+                                                                                                                                                                                                                                                                                                out = np.array(
+                                                                                                                                                                                                                                                                                                    [
+                                                                                                                                                                                                                                                                                                        2,1,
+                                                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                                                        3,
+                                                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                                                        3,
+                                                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                                                        5])
+                                                                                                                                                                                                                                                                                            else:
+                                                                                                                                                                                                                                                                                                if inp_shape == 2:
+                                                                                                                                                                                                                                                                                                    out = np.array(
+                                                                                                                                                                                                                                                                                                        [
+                                                                                                                                                                                                                                                                                                            2,1,
+                                                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                                                            1])
+                                                                                                                                                                                                                                                                                                else:
+                                                                                                                                                                                                                                                                                                    if inp_shape == 63:
+                                                                                                                                                                                                                                                                                                        out = np.array(
+                                                                                                                                                                                                                                                                                                            [
+                                                                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                                                                3,
+                                                                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                                                                7,
+                                                                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                                                                3,
+                                                                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                                                                1,1])
+                                                                                                                                                                                                                                                                                                    else:
+                                                                                                                                                                                                                                                                                                        if inp_shape == 57:
+                                                                                                                                                                                                                                                                                                            out = np.array(
+                                                                                                                                                                                                                                                                                                                [
+                                                                                                                                                                                                                                                                                                                    3,
+                                                                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                                                                    19,1,
+                                                                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                                                                    1,
+                                                                                                                                                                                                                                                                                                                    1])
+                                                                                                                                                                                                                                                                                                        else:
+                                                                                                                                                                                                                                                                                                            if inp_shape == 69:
+                                                                                                                                                                                                                                                                                                                out = np.array(
+                                                                                                                                                                                                                                                                                                                    [
+                                                                                                                                                                                                                                                                                                                        1,1,
+                                                                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                                                                        3,
+                                                                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                                                                        23,
+                                                                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                                                                        1,
+                                                                                                                                                                                                                                                                                                                        1])
+                                                                                                                                                                                                                                                                                                            else:
+                                                                                                                                                                                                                                                                                                                if inp_shape == 81:
+                                                                                                                                                                                                                                                                                                                    out = np.array(
+                                                                                                                                                                                                                                                                                                                        [
+                                                                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                                                                            3,
+                                                                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                                                                            3,
+                                                                                                                                                                                                                                                                                                                            3,1,
+                                                                                                                                                                                                                                                                                                                            3,
+                                                                                                                                                                                                                                                                                                                            1,
+                                                                                                                                                                                                                                                                                                                            1])
+                                                                                                                                                                                                                                                                                                                else:
+                                                                                                                                                                                                                                                                                                                    if inp_shape == 93:
+                                                                                                                                                                                                                                                                                                                        out = np.array(
+                                                                                                                                                                                                                                                                                                                            [
+                                                                                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                                                                                3,
+                                                                                                                                                                                                                                                                                                                                1,1,
+                                                                                                                                                                                                                                                                                                                                31,
+                                                                                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                                                                                1,
+                                                                                                                                                                                                                                                                                                                                1])
+
+    # print inp_shape
+    out.astype(np.int32)
+    if len(out) == split_dimension_core:
+        return out
