@@ -133,8 +133,18 @@ class TripleGAN3D(object):
     # value the same as in the original Torch code
     self.first_output_features  = config.growth_rate * 2
     self.total_blocks           = config.total_blocks
-    self.split_dimension_core   = config.split_dimension_core
-    self.tt_rank           = config.tt_rank
+
+    self.split_dimension_core_G   = config.split_dimension_core_G
+    self.tt_rank_G           = config.tt_rank_G
+
+    self.split_dimension_core_C = config.split_dimension_core_C
+    self.tt_rank_C = config.tt_rank_C
+
+    self.split_dimension_core_D = config.split_dimension_core_D
+    self.tt_rank_D = config.tt_rank_D
+
+
+
     self.adam_g = config.adam_g
 
     self.d_loss_version = config.d_loss_version
@@ -275,7 +285,9 @@ class TripleGAN3D(object):
     accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
     return D_L_Supervised, D_L_RealUnsupervised, D_L_FakeUnsupervised, total_d_loss, G_L, GAN_loss, accuracy
 
-  def discriminator(self, x, y_, scope="Discriminator", is_training=True, reuse=False):
+
+
+  def discriminator(self, x, y_, scope="Discriminator", is_training=True, reuse=False, split_dimension_core = 3,tt_rank = 3):
     with tf.variable_scope(scope, reuse=reuse):
 
       y = tf.reshape(y_, [-1, 1, 1, 1, self.n_classes])
@@ -290,7 +302,7 @@ class TripleGAN3D(object):
             x,
             out_features=self.first_output_features,
             kernel_size=7,
-            strides=[1, 1, 2, 2, 1], padding="SAME",name="conv3dTensorNet1", split_dimension_core=self.split_dimension_core,tt_rank=self.tt_rank)
+            strides=[1, 1, 2, 2, 1], padding="SAME",name="conv3dTensorNet1", split_dimension_core = split_dimension_core, tt_rank = tt_rank)
 
           # first pooling
           output = self.pool(output, k=3, d=3, k_stride=2, d_stride=1)
@@ -298,16 +310,16 @@ class TripleGAN3D(object):
         # add N required blocks
         for block in range(self.total_blocks):
           with tf.variable_scope("Block_%d" % block):
-            output = self.add_block(output, growth_rate, layers_per_block,y)
+            output = self.add_block(output, growth_rate, layers_per_block,split_dimension_core,tt_rank,y)
           # last block exist without transition layer
           if block != self.total_blocks - 1:
             with tf.variable_scope("Transition_after_block_%d" % block):
               # pool_depth = 1 if block == 0 else 2
               pool_depth = 2
-              output = self.transition_layer(output, pool_depth,y=y)
+              output = self.transition_layer(output,split_dimension_core,tt_rank, pool_depth,y=y)
 
         with tf.variable_scope("Transition_to_classes"):
-          logits = self.trainsition_layer_to_1(output,y)
+          logits = self.trainsition_layer_to_1(output,y,split_dimension_core,tt_rank)
 
           prediction = tf.nn.sigmoid(logits)
 
@@ -321,18 +333,18 @@ class TripleGAN3D(object):
 
     """ Loss Function """
     # output of D for real images
-    D_real, D_real_logits = self.discriminator(self.labelled_inputs, self.labels, is_training=True, reuse=False)
+    D_real, D_real_logits = self.discriminator(self.labelled_inputs, self.labels, is_training=True, reuse=False, split_dimension_core = self.split_dimension_core_D,tt_rank = self.tt_rank_D)
 
     # output of D for fake images
-    self.fake_image = self.generator(self.z_vector, self.labels,phase_train=self.is_training, reuse=False)
-    D_fake, D_fake_logits = self.discriminator(self.fake_image, self.labels, is_training=True, reuse=True)
+    self.fake_image = self.generator(self.z_vector, self.labels,phase_train=self.is_training, reuse=False, split_dimension_core = self.split_dimension_core_G,tt_rank = self.tt_rank_G)
+    D_fake, D_fake_logits = self.discriminator(self.fake_image, self.labels, is_training=True, reuse=True, split_dimension_core = self.split_dimension_core_D,tt_rank = self.tt_rank_D)
 
     # output of C for real images
-    C_real_softmax, C_real_logits = self.classifier(self.labelled_inputs, is_training=True, reuse=False)
+    C_real_softmax, C_real_logits = self.classifier(self.labelled_inputs, is_training=True, reuse=False, split_dimension_core = self.split_dimension_core_C,tt_rank = self.tt_rank_C)
     R_L = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=self.labels, logits=C_real_logits))
 
     # output of D for unlabelled images
-    C_real_unlabel_softmax, C_real_unlabel_logits = self.classifier(self.unlabelled_inputs, is_training=True, reuse=True)
+    C_real_unlabel_softmax, C_real_unlabel_logits = self.classifier(self.unlabelled_inputs, is_training=True, reuse=True, split_dimension_core = self.split_dimension_core_C,tt_rank = self.tt_rank_C)
 ########################################################################################
     # C_real_unlabel_softmax to one_hot label
 
@@ -344,7 +356,7 @@ class TripleGAN3D(object):
     #####################################################################3
 
 
-    D_unlabel_classfier_sigmoid, D_unlabel_classfier_logits = self.discriminator(self.unlabelled_inputs, C_real_unlabel_softmax, is_training=True, reuse=True)
+    D_unlabel_classfier_sigmoid, D_unlabel_classfier_logits = self.discriminator(self.unlabelled_inputs, C_real_unlabel_softmax, is_training=True, reuse=True, split_dimension_core = self.split_dimension_core_D,tt_rank = self.tt_rank_D)
     # output of C for fake images
     C_fake_softmax, C_fake_logits = self.classifier(self.fake_image, is_training=True, reuse=True)
     R_G = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=self.labels, logits=C_fake_logits))
@@ -650,8 +662,7 @@ class TripleGAN3D(object):
 
 
 
-    # (Updated)
-  def composite_function(self, _input, out_features, kernel_size=3,y=None):
+  def composite_function(self, _input, split_dimension_core, tt_rank, out_features, kernel_size=3,y=None):
     """Function from paper H_l that performs:
     - batch normalization
     - ReLU nonlinearity
@@ -675,13 +686,13 @@ class TripleGAN3D(object):
       # convolution
       output = conv3dtensorNet(
         output, out_features=out_features, kernel_size=kernel_size,name="conv3dTensorNet",
-        split_dimension_core=self.split_dimension_core, tt_rank=self.tt_rank)
+        split_dimension_core=split_dimension_core, tt_rank=tt_rank)
         # dropout(in case of training and in case it is no 1.0)
       output = self.dropout(output)
     return output
 
-  # (Updated)
-  def bottleneck(self, _input, out_features,add_y=None):
+
+  def bottleneck(self, _input, split_dimension_core, tt_rank, out_features,add_y=None):
     with tf.variable_scope("bottleneck"):
       output = self.batch_norm(_input)
       with tf.name_scope("ReLU"):
@@ -698,14 +709,14 @@ class TripleGAN3D(object):
 
       output = conv3dtensorNet(output, out_features=inter_features, kernel_size=1,
         padding='VALID', name="conv3dTensorNet",
-        split_dimension_core=self.split_dimension_core, tt_rank=self.tt_rank)
+        split_dimension_core=split_dimension_core, tt_rank=tt_rank)
 
 
       output = self.dropout(output)
     return output
 
-  # (Updated)
-  def add_internal_layer(self, _input, growth_rate,y=None):
+
+  def add_internal_layer(self, _input, growth_rate, split_dimension_core, tt_rank,y=None):
     """Perform H_l composite function for the layer and after concatenate
     input with output from composite function.
     """
@@ -714,9 +725,9 @@ class TripleGAN3D(object):
       comp_out = self.composite_function(
         _input, out_features=growth_rate, kernel_size=3)
     elif self.bc_mode:
-      bottleneck_out = self.bottleneck(_input, out_features=growth_rate,add_y=y)
+      bottleneck_out = self.bottleneck(_input, split_dimension_core, tt_rank, out_features=growth_rate,add_y=y)
       comp_out = self.composite_function(
-        bottleneck_out, out_features=growth_rate, kernel_size=3,y=y)
+        bottleneck_out, split_dimension_core, tt_rank, out_features=growth_rate, kernel_size=3,y=y)
     # concatenate _input with out from composite function
     with tf.name_scope("concat"):
       if TF_VERSION >= 1.0:
@@ -726,33 +737,32 @@ class TripleGAN3D(object):
     return output
 
 
-
   # (Updated)
-  def add_block(self, _input, growth_rate, layers_per_block,y=None):
+  def add_block(self, _input, growth_rate, layers_per_block,split_dimension_core, tt_rank,y=None):
     """Add N H_l internal layers"""
     output = _input
     for layer in range(layers_per_block):
       with tf.variable_scope("layer_%d" % layer):
-        output = self.add_internal_layer(output, growth_rate,y)
+        output = self.add_internal_layer(output, growth_rate,split_dimension_core, tt_rank,y)
     return output
 
 
-
-
-  # (Updated)
-  def transition_layer(self, _input, pool_depth=2,y=None):
+  def transition_layer(self, _input, split_dimension_core, tt_rank, pool_depth=2,y=None):
     """Call H_l composite function with 1x1 kernel and pooling
     """
     # call composite function with 1x1 kernel
     out_features = int(int(_input.get_shape()[-1]) * self.reduction)
     output = self.composite_function(
-      _input, out_features=out_features, kernel_size=1,y=y)
+      _input, split_dimension_core, tt_rank, out_features=out_features, kernel_size=1,y=y)
     # run pooling
     with tf.name_scope("pooling"):
       output = self.pool(output, k=2, d=pool_depth)
     return output
 
-  def trainsition_layer_to_1(self, _input,y):
+
+
+
+  def trainsition_layer_to_1(self, _input,y, split_dimension_core, tt_rank):
     """This is last transition to get probabilities by classes. It perform:
     - batch normalization
     - ReLU nonlinearity
@@ -783,7 +793,7 @@ class TripleGAN3D(object):
     # logits = tf.matmul(output, W) + bias
 
     logits = fcTensorNet(output, 1, self.is_training, info=False, norm='None', name='tensor_fc',
-                    split_dimension_core=self.split_dimension_core, tt_rank=self.tt_rank)
+                    split_dimension_core=split_dimension_core, tt_rank=tt_rank)
 
 
 
@@ -811,7 +821,7 @@ class TripleGAN3D(object):
 
 
   # (Updated)
-  def trainsition_layer_to_classes(self, _input):
+  def trainsition_layer_to_classes(self, _input,split_dimension_core,tt_rank):
     """This is last transition to get probabilities by classes. It perform:
     - batch normalization
     - ReLU nonlinearity
@@ -841,7 +851,7 @@ class TripleGAN3D(object):
     # logits = tf.matmul(output, W) + bias
 
     logits = fcTensorNet(output, self.n_classes, self.is_training, info=False, norm='None', name='tensor_fc',
-                    split_dimension_core=self.split_dimension_core, tt_rank=self.tt_rank)
+                    split_dimension_core=split_dimension_core, tt_rank=tt_rank)
 
 
 
@@ -936,7 +946,9 @@ class TripleGAN3D(object):
     return tf.get_variable(name, initializer=initial)
 
 
-  def generator(self, z, y, phase_train=True, reuse=False):
+
+
+  def generator(self, z, y, phase_train=True, reuse=False, split_dimension_core = 6, tt_rank = 6):
       strides = [1, 2, 2, 2, 1]
       weights=self.weights
       batch_size=self.batch_size
@@ -944,7 +956,7 @@ class TripleGAN3D(object):
           x = tf.concat([z, y], axis=1)
 
           x = fcTensorNet(x, 4*3*3*512, self.is_training, info=False, norm='None', name='tensor_fc',
-                               split_dimension_core=self.split_dimension_core, tt_rank=self.tt_rank)
+                               split_dimension_core=split_dimension_core, tt_rank=tt_rank)
 
 
 
@@ -964,27 +976,27 @@ class TripleGAN3D(object):
 
 
 
-          g_2 = conv3d_transpose_tensor(x, weights['wg2'], (batch_size, 7, 6, 6, 256), strides, padding="SAME",name="conv3d_transpose_TensorNet1", split_dimension_core=self.split_dimension_core,tt_rank=self.tt_rank)
+          g_2 = conv3d_transpose_tensor(x, weights['wg2'], (batch_size, 7, 6, 6, 256), strides, padding="SAME",name="conv3d_transpose_TensorNet1", split_dimension_core=split_dimension_core,tt_rank=tt_rank)
           g_2 = tf.contrib.layers.batch_norm(g_2, is_training=phase_train)
           g_2 = tf.nn.relu(g_2)
           g_2 = conv_concat(g_2, y)
 
-          g_3 = conv3d_transpose_tensor(g_2, weights['wg3'], (batch_size, 14, 12, 12, 128), strides, padding="SAME",name="conv3d_transpose_TensorNet2", split_dimension_core=self.split_dimension_core,tt_rank=self.tt_rank)
+          g_3 = conv3d_transpose_tensor(g_2, weights['wg3'], (batch_size, 14, 12, 12, 128), strides, padding="SAME",name="conv3d_transpose_TensorNet2", split_dimension_core=split_dimension_core,tt_rank=tt_rank)
           g_3 = tf.contrib.layers.batch_norm(g_3, is_training=phase_train)
           g_3 = tf.nn.relu(g_3)
           g_3 = conv_concat(g_3, y)
 
-          g_4 = conv3d_transpose_tensor(g_3, weights['wg4'], (batch_size, 28, 23, 23, 64), strides, padding="SAME",name="conv3d_transpose_TensorNet3", split_dimension_core=self.split_dimension_core,tt_rank=self.tt_rank)
+          g_4 = conv3d_transpose_tensor(g_3, weights['wg4'], (batch_size, 28, 23, 23, 64), strides, padding="SAME",name="conv3d_transpose_TensorNet3", split_dimension_core=split_dimension_core,tt_rank=tt_rank)
           g_4 = tf.contrib.layers.batch_norm(g_4, is_training=phase_train)
           g_4 = tf.nn.relu(g_4)
           g_4 = conv_concat(g_4, y)
 
-          g_5 = conv3d_transpose_tensor(g_4, weights['wg5'], (batch_size, 55, 46, 46, 32), strides, padding="SAME",name="conv3d_transpose_TensorNet4", split_dimension_core=self.split_dimension_core,tt_rank=self.tt_rank)
+          g_5 = conv3d_transpose_tensor(g_4, weights['wg5'], (batch_size, 55, 46, 46, 32), strides, padding="SAME",name="conv3d_transpose_TensorNet4", split_dimension_core=split_dimension_core,tt_rank=tt_rank)
           g_5 = tf.contrib.layers.batch_norm(g_5, is_training=phase_train)
           g_5 = tf.nn.relu(g_5)
           g_5 = conv_concat(g_5, y)
 
-          g_6 = conv3d_transpose_tensor(g_5, weights['wg6'], (batch_size, 109, 91, 91, 1), strides, padding="SAME",name="conv3d_transpose_TensorNet5", split_dimension_core=self.split_dimension_core,tt_rank=self.tt_rank)
+          g_6 = conv3d_transpose_tensor(g_5, weights['wg6'], (batch_size, 109, 91, 91, 1), strides, padding="SAME",name="conv3d_transpose_TensorNet5", split_dimension_core=split_dimension_core,tt_rank=tt_rank)
 
           g_6 = tf.nn.tanh(g_6)
 
@@ -1001,7 +1013,7 @@ class TripleGAN3D(object):
 
 
 
-  def classifier(self,mri,is_training=True, reuse=False):
+  def classifier(self,mri,is_training=True, reuse=False, split_dimension_core = 6,tt_rank = 6):
     growth_rate = self.growth_rate
     layers_per_block = self.layers_per_block
     # first - initial 3 x 3 x 3 conv to first_output_features
@@ -1014,7 +1026,7 @@ class TripleGAN3D(object):
           out_features=self.first_output_features,
           kernel_size=7,
           strides=[1, 1, 2, 2, 1], padding="SAME", name="conv3dTensorNet",
-          split_dimension_core=self.split_dimension_core, tt_rank=self.tt_rank)
+          split_dimension_core=split_dimension_core, tt_rank=tt_rank)
 
 
         # first pooling
@@ -1023,16 +1035,16 @@ class TripleGAN3D(object):
       # add N required blocks
       for block in range(self.total_blocks):
         with tf.variable_scope("Block_%d" % block):
-          output = self.add_block(output, growth_rate, layers_per_block)
+          output = self.add_block(output, growth_rate, layers_per_block,split_dimension_core,tt_rank)
         # last block exist without transition layer
         if block != self.total_blocks - 1:
           with tf.variable_scope("Transition_after_block_%d" % block):
             # pool_depth = 1 if block == 0 else 2
             pool_depth = 2
-            output = self.transition_layer(output, pool_depth)
+            output = self.transition_layer(output, split_dimension_core,tt_rank, pool_depth)
 
       with tf.variable_scope("Transition_to_classes"):
-        logits = self.trainsition_layer_to_classes(output)
+        logits = self.trainsition_layer_to_classes(output,split_dimension_core,tt_rank)
 
     self.prediction = tf.nn.softmax(logits)
     return self.prediction, logits

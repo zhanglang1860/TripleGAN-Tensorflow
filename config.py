@@ -86,8 +86,18 @@ def argparser(is_train=True):
     parser.add_argument('--learning_rate_d', type=float, default=0.01)
     parser.add_argument('--labeled_rate', type=float, default=1.0)
 
-    parser.add_argument('--split_dimension_core', type=int, default=6)
-    parser.add_argument('--tt_rank', type=int, default=6)
+    parser.add_argument('--split_dimension_core_G', type=int, default=3)
+    parser.add_argument('--tt_rank_G', type=int, default=20)
+
+    parser.add_argument('--split_dimension_core_C', type=int, default=3)
+    parser.add_argument('--tt_rank_C', type=int, default=25)
+
+    parser.add_argument('--split_dimension_core_D', type=int, default=3)
+    parser.add_argument('--tt_rank_D', type=int, default=10)
+
+
+
+
     parser.add_argument(
         '--num_less_label_data', type=int, choices=[0, 18, 36, 72, 144, 288],
         default=0,

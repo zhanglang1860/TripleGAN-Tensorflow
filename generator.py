@@ -2,7 +2,6 @@ import numpy as np
 import tensorflow as tf
 from ops import depthwise_conv2d
 from ops import fc
-from ops import grouped_conv2d
 
 class Generator(object):
     def __init__(self, name, h, w, c, norm_type, deconv_type, is_train):

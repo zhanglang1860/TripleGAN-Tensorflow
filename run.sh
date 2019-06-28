@@ -16,9 +16,9 @@ python GAN_train.py --train --test --hdf5FileNametrain train_MRIdata_3_AD_MCI_No
 
 
 
-python GAN_train.py --train --test --hdf5FileNametrain train_MRIdata_2_AD_MCI.hdf5 --idFileNametrain train_MRIdata_2_AD_MCI_id.txt --testhdf5FileName test_MRIdata_2_AD_MCI.hdf5 --testidFileName test_MRIdata_2_AD_MCI_id.txt --gpu_id 0
+python GAN_train.py --train --test --hdf5FileNametrain train_MRIdata_2_AD_MCI.hdf5 --idFileNametrain train_MRIdata_2_AD_MCI_id.txt --testhdf5FileName test_MRIdata_2_AD_MCI.hdf5 --testidFileName test_MRIdata_2_AD_MCI_id.txt --gpu_id 0 --split_dimension_core 10 --tt_rank 10
 
-
+python GAN_train.py --train --test --hdf5FileNametrain train_MRIdata_2_AD_MCI.hdf5 --idFileNametrain train_MRIdata_2_AD_MCI_id.txt --testhdf5FileName test_MRIdata_2_AD_MCI.hdf5 --testidFileName test_MRIdata_2_AD_MCI_id.txt --gpu_id 1 --split_dimension_core 10 --tt_rank 16
 python GAN_train.py --train --test --hdf5FileNametrain train_MRIdata_2_AD_MCI.hdf5 --idFileNametrain train_MRIdata_2_AD_MCI_id.txt --testhdf5FileName test_MRIdata_2_AD_MCI.hdf5 --testidFileName test_MRIdata_2_AD_MCI_id.txt --gpu_id 1
 
 

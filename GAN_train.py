@@ -57,15 +57,16 @@ def construct_train_dir(config):
 
 
 
+
     temp = config.hdf5FileNametrain.split('.')
     hyper_parameter_all_folds = 'all8020_{}_lr_g_{}_d_{}_num_less_label_data_{}_batchSize{}_maxIteration{}'.format(
         temp[0], config.learning_rate_g, config.learning_rate_d,
         config.num_less_label_data, config.batch_size, config.max_training_steps
     )
 
-    config.prefix = 'TripleGan_depth{}_growthRate{}_reduce{}_model_type{}_keepPro{}_d_loss_version{}_split_dimension_core{}_tt_rank{}'.format(
+    config.prefix = 'TripleGan_depth{}_growthRate{}_reduce{}_model_type{}_keepPro{}_d_loss_version{}_G_core{}_G_rank{}_C_core{}_C_rank{}_D_core{}_D_rank{}'.format(
         config.depth, config.growth_rate, config.reduction,
-        config.model_type, config.keep_prob,config.d_loss_version,config.split_dimension_core,config.tt_rank
+        config.model_type, config.keep_prob,config.d_loss_version,config.split_dimension_core_G,config.tt_rank_G,config.split_dimension_core_C,config.tt_rank_C,config.split_dimension_core_D,config.tt_rank_D
     )
 
     train_dir = './train_dir/%s-%s' % (
