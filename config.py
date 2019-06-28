@@ -70,7 +70,7 @@ def argparser(is_train=True):
     # log
     parser.add_argument('--log_step', type=int, default=10)
     parser.add_argument('--write_summary_step', type=int, default=100)
-    parser.add_argument('--batch_size', type=int, default=3)
+    parser.add_argument('--batch_size', type=int, default=8)
     # parser.add_argument('--batch_size_unlabel', type=int, default=0)
     parser.add_argument('--ckpt_save_step', type=int, default=50)
     parser.add_argument('--test_sample_step', type=int, default=100)
@@ -78,7 +78,7 @@ def argparser(is_train=True):
     # learning
     parser.add_argument('--max_sample', type=int, default=50000,
                         help='num of samples the model can see')
-    parser.add_argument('--max_training_steps', type=int, default=2)
+    parser.add_argument('--max_training_steps', type=int, default=1000)
     parser.add_argument('--reduce_lr_epoch_1', type=int, default=75)
     parser.add_argument('--reduce_lr_epoch_2', type=int, default=110)
     parser.add_argument('--queue_size', type=int, default=10)
@@ -87,13 +87,13 @@ def argparser(is_train=True):
     parser.add_argument('--labeled_rate', type=float, default=1.0)
 
     parser.add_argument('--split_dimension_core_G', type=int, default=3)
-    parser.add_argument('--tt_rank_G', type=int, default=20)
+    parser.add_argument('--tt_rank_G', type=int, default=9)
 
     parser.add_argument('--split_dimension_core_C', type=int, default=3)
-    parser.add_argument('--tt_rank_C', type=int, default=25)
+    parser.add_argument('--tt_rank_C', type=int, default=13)
 
     parser.add_argument('--split_dimension_core_D', type=int, default=3)
-    parser.add_argument('--tt_rank_D', type=int, default=10)
+    parser.add_argument('--tt_rank_D', type=int, default=8)
 
 
 

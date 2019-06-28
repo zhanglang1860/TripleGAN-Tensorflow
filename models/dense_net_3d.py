@@ -358,7 +358,7 @@ class TripleGAN3D(object):
 
     D_unlabel_classfier_sigmoid, D_unlabel_classfier_logits = self.discriminator(self.unlabelled_inputs, C_real_unlabel_softmax, is_training=True, reuse=True, split_dimension_core = self.split_dimension_core_D,tt_rank = self.tt_rank_D)
     # output of C for fake images
-    C_fake_softmax, C_fake_logits = self.classifier(self.fake_image, is_training=True, reuse=True)
+    C_fake_softmax, C_fake_logits = self.classifier(self.fake_image, is_training=True, reuse=True, split_dimension_core = self.split_dimension_core_C,tt_rank = self.tt_rank_C)
     R_G = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=self.labels, logits=C_fake_logits))
 
     # get loss for discriminator
