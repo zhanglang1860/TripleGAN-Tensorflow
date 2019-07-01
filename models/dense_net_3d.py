@@ -1210,7 +1210,7 @@ class TripleGAN3D(object):
     num_examples = data.num_examples
     total_c_loss= []
     total_accuracy= []
-    batch_size=1
+
 
     for i in range(num_examples // batch_size):
       batch = data.next_batch(batch_size)

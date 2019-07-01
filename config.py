@@ -74,7 +74,7 @@ def argparser(is_train=True):
 
     #maximum total batch_size 16
     parser.add_argument('--batch_size_label', type=int, default=8)
-    parser.add_argument('--batch_size_unlabel', type=int, default=8)
+    parser.add_argument('--batch_size_unlabel', type=int, default=9)
     # parser.add_argument('--batch_size_unlabel', type=int, default=0)
     parser.add_argument('--ckpt_save_step', type=int, default=50)
     parser.add_argument('--test_sample_step', type=int, default=100)

@@ -1,13 +1,13 @@
-python GAN_train.py --train --test --hdf5FileNametrain train_MRIdata_3_AD_MCI_Normal.hdf5 --idFileNametrain train_MRIdata_3_AD_MCI_Normal_id.txt --testhdf5FileName test_MRIdata_3_AD_MCI_Normal.hdf5 --testidFileName test_MRIdata_3_AD_MCI_Normal_id.txt --gpu_id 0 --batch_size_label 10 --batch_size_unlabel 6
+python GAN_train.py --train --test --hdf5FileNametrain train_MRIdata_3_AD_MCI_Normal.hdf5 --idFileNametrain train_MRIdata_3_AD_MCI_Normal_id.txt --testhdf5FileName test_MRIdata_3_AD_MCI_Normal.hdf5 --testidFileName test_MRIdata_3_AD_MCI_Normal_id.txt --gpu_id 0 --batch_size_label 10 --batch_size_unlabel 4
 
 
-python GAN_train.py --train --test --hdf5FileNametrain train_MRIdata_3_AD_MCI_Normal.hdf5 --idFileNametrain train_MRIdata_3_AD_MCI_Normal_id.txt --testhdf5FileName test_MRIdata_3_AD_MCI_Normal.hdf5 --testidFileName test_MRIdata_3_AD_MCI_Normal_id.txt --gpu_id 1 --batch_size_label 11 --batch_size_unlabel 5
+python GAN_train.py --train --test --hdf5FileNametrain train_MRIdata_3_AD_MCI_Normal.hdf5 --idFileNametrain train_MRIdata_3_AD_MCI_Normal_id.txt --testhdf5FileName test_MRIdata_3_AD_MCI_Normal.hdf5 --testidFileName test_MRIdata_3_AD_MCI_Normal_id.txt --gpu_id 1 --batch_size_label 11 --batch_size_unlabel 3
 
 
-python GAN_train.py --train --test --hdf5FileNametrain train_MRIdata_3_AD_MCI_Normal.hdf5 --idFileNametrain train_MRIdata_3_AD_MCI_Normal_id.txt --testhdf5FileName test_MRIdata_3_AD_MCI_Normal.hdf5 --testidFileName test_MRIdata_3_AD_MCI_Normal_id.txt --gpu_id 2 ---batch_size_label 12 --batch_size_unlabel 4
+python GAN_train.py --train --test --hdf5FileNametrain train_MRIdata_3_AD_MCI_Normal.hdf5 --idFileNametrain train_MRIdata_3_AD_MCI_Normal_id.txt --testhdf5FileName test_MRIdata_3_AD_MCI_Normal.hdf5 --testidFileName test_MRIdata_3_AD_MCI_Normal_id.txt --gpu_id 2 --batch_size_label 8 --batch_size_unlabel 8
 
 
-python GAN_train.py --train --test --hdf5FileNametrain train_MRIdata_3_AD_MCI_Normal.hdf5 --idFileNametrain train_MRIdata_3_AD_MCI_Normal_id.txt --testhdf5FileName test_MRIdata_3_AD_MCI_Normal.hdf5 --testidFileName test_MRIdata_3_AD_MCI_Normal_id.txt --gpu_id 3 --batch_size_label 13 --batch_size_unlabel 3
+python GAN_train.py --train --test --hdf5FileNametrain train_MRIdata_3_AD_MCI_Normal.hdf5 --idFileNametrain train_MRIdata_3_AD_MCI_Normal_id.txt --testhdf5FileName test_MRIdata_3_AD_MCI_Normal.hdf5 --testidFileName test_MRIdata_3_AD_MCI_Normal_id.txt --gpu_id 3 --batch_size_label 10 --batch_size_unlabel 3
 
 
 
