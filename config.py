@@ -71,7 +71,7 @@ def argparser(is_train=True):
     # log
     parser.add_argument('--log_step', type=int, default=10)
     parser.add_argument('--write_summary_step', type=int, default=100)
-    parser.add_argument('--batch_size', type=int, default=10)
+    parser.add_argument('--batch_size', type=int, default=8)
     # parser.add_argument('--batch_size_unlabel', type=int, default=0)
     parser.add_argument('--ckpt_save_step', type=int, default=50)
     parser.add_argument('--test_sample_step', type=int, default=100)
