@@ -914,7 +914,7 @@ class TripleGAN3D(object):
   def generator(self, z, y, phase_train=True, reuse=False):
     strides = [1, 2, 2, 2, 1]
     # weights = self.weights
-    batch_size = self.batch_size
+    batch_size = self.batch_size_label
     with tf.variable_scope("Generator", reuse=reuse):
       # if self.n_classes==3:
       #   weights = {}
