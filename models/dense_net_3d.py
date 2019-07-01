@@ -160,7 +160,8 @@ class TripleGAN3D(object):
     self.whichFoldData=whichFoldData
     self.renew_logs=config.renew_logs
     self.n_z = config.n_z
-    self.batch_size = config.batch_size
+    self.batch_size_label = config.batch_size_label
+    self.batch_size_unlabel = config.batch_size_unlabel
     self.alpha = 0.5
     self.alpha_cla_adv=0.01
     self.alpha_p = tf.placeholder(tf.float32, name='alpha_p')
@@ -189,8 +190,14 @@ class TripleGAN3D(object):
 
   def _define_inputs(self):
     self.is_training = tf.placeholder_with_default(bool(self.is_train), [], name='is_training')
-    shape = [self.batch_size]
-    shape.extend(self.data_shape)
+    shape_label = [self.batch_size_label]
+    shape_label.extend(self.data_shape)
+
+    shape_unlabel = [self.batch_size_unlabel]
+    shape_unlabel.extend(self.data_shape)
+
+
+
     # self.videos = tf.placeholder(
     #   tf.float32,
     #   shape=shape,
@@ -199,9 +206,9 @@ class TripleGAN3D(object):
     # labels
     self.labels = tf.placeholder(
       dtype=tf.float32,
-      shape=[self.batch_size, self.n_classes],
+      shape=[self.batch_size_label, self.n_classes],
       name='labels')
-    self.unlabelled_inputs_y = tf.placeholder(dtype=tf.float32, shape=[self.batch_size, self.n_classes])
+    self.unlabelled_inputs_y = tf.placeholder(dtype=tf.float32, shape=[self.batch_size_unlabel, self.n_classes])
     self.test_label = tf.placeholder(dtype=tf.float32, shape=[None, self.n_classes], name='test_label')
 
     self.learning_rate = tf.placeholder(
@@ -214,11 +221,11 @@ class TripleGAN3D(object):
 
     """ Graph Input """
     # images
-    self.labelled_inputs = tf.placeholder(shape=shape, dtype=tf.float32, name='real_images')
-    self.unlabelled_inputs = tf.placeholder(shape=shape, dtype=tf.float32, name='unlabelled_images')
-    self.test_inputs = tf.placeholder(shape=shape, dtype=tf.float32, name='test_images')
+    self.labelled_inputs = tf.placeholder(shape=shape_label, dtype=tf.float32, name='real_images')
+    self.unlabelled_inputs = tf.placeholder(shape=shape_unlabel, dtype=tf.float32, name='unlabelled_images')
+    self.test_inputs = tf.placeholder(shape=shape_label, dtype=tf.float32, name='test_images')
 
-    self.z_vector = tf.placeholder(shape=[self.batch_size, self.n_z], dtype=tf.float32)
+    self.z_vector = tf.placeholder(shape=[self.batch_size_label, self.n_z], dtype=tf.float32)
 
 
   ############ Preparing Mask ############
@@ -1028,7 +1035,8 @@ class TripleGAN3D(object):
   def train_all_epochs(self, config):
     n_epochs           = config.max_training_steps
     init_learning_rate = config.learning_rate_d
-    batch_size         = config.batch_size
+    batch_size_label  = config.batch_size_label
+    batch_size_unlabel = config.batch_size_unlabel
     reduce_lr_epoch_1  = config.reduce_lr_epoch_1
     reduce_lr_epoch_2  = config.reduce_lr_epoch_2
 
@@ -1069,15 +1077,15 @@ class TripleGAN3D(object):
       # else:
       #   alpha_p = 0.0
 
-      if epoch >= 90 and epoch<180:
+      if epoch >= 200 and epoch<300:
         alpha_p = 0.1
-      elif epoch >= 180 and epoch < 270:
+      elif epoch >= 300 and epoch < 400:
         alpha_p = 0.2
-      elif epoch >= 270 and epoch < 360:
+      elif epoch >= 400 and epoch < 500:
         alpha_p = 0.3
-      elif epoch >= 360 and epoch < 450:
+      elif epoch >= 500 and epoch < 600:
         alpha_p = 0.4
-      elif epoch >= 450:
+      elif epoch >= 600:
         alpha_p = 0.5
       else:
         alpha_p = 0.0
@@ -1090,7 +1098,7 @@ class TripleGAN3D(object):
 
 
       mean_C_loss, mean_accuracy, mean_G_loss, mean_D_loss, alpha_p, lr = self.train_one_epoch(
-        self.data_provider, batch_size, learning_rate,epoch,alpha_p)
+        self.data_provider, batch_size_label,batch_size_unlabel, learning_rate,epoch,alpha_p)
 
       self.save_model(global_step=epoch)
 
@@ -1116,7 +1124,7 @@ class TripleGAN3D(object):
 
       print("Validation...")
       mean_accuracy = self.test(
-        self.data_provider.test, batch_size)
+        self.data_provider.test, batch_size_label)
 
       self.log_one_metric(mean_accuracy, epoch, prefix='test_c_accuracy')
 
@@ -1134,7 +1142,7 @@ class TripleGAN3D(object):
 
 
   # (Updated)
-  def train_one_epoch(self, data, batch_size, learning_rate,epoch,alpha_p):
+  def train_one_epoch(self, data, batch_size_label,batch_size_unlabel, learning_rate,epoch,alpha_p):
     num_examples = data.train_unlabelled.num_examples
     total_C_loss = []
     total_D_loss = []
@@ -1143,17 +1151,17 @@ class TripleGAN3D(object):
     total_accuracy = []
 
 
-    z = np.random.normal(0, 1, size=[batch_size, self.n_z]).astype(np.float32)
+    z = np.random.normal(0, 1, size=[batch_size_label, self.n_z]).astype(np.float32)
 
-    for i in range(num_examples // batch_size):
+    for i in range(num_examples // batch_size_unlabel):
       # videos size is (numpy array):
       #   [batch_size, sequence_length, width, height, channels]
       # labels size is (numpy array):
       #   [batch_size, num_classes]
 
 
-      mri_unlabel, unlabel_labels = data.train_unlabelled.next_batch(batch_size)
-      mri_label, label_labels = data.train_labelled.next_batch(batch_size)
+      mri_unlabel, unlabel_labels = data.train_unlabelled.next_batch(batch_size_unlabel)
+      mri_label, label_labels = data.train_labelled.next_batch(batch_size_label)
 
       feed_dict = {self.z_vector: z, self.labelled_inputs: mri_label,self.unlabelled_inputs: mri_unlabel, self.learning_rate: learning_rate, self.alpha_p: alpha_p,self.is_training: True,self.labels:label_labels}
 
@@ -1202,6 +1210,7 @@ class TripleGAN3D(object):
     num_examples = data.num_examples
     total_c_loss= []
     total_accuracy= []
+    batch_size=1
 
     for i in range(num_examples // batch_size):
       batch = data.next_batch(batch_size)

@@ -53,9 +53,9 @@ def construct_train_dir(config):
 
 
     temp = config.hdf5FileNametrain.split('.')
-    hyper_parameter_all_folds = 'all8020_{}_lr_g_{}_d_{}_num_less_label_data_{}_batchSize{}_maxIteration{}'.format(
+    hyper_parameter_all_folds = 'all8020_{}_lr_g_{}_d_{}_num_less_label_data_{}_batchSizeLabel{}_batchSizeUnlabel{}_maxIteration{}'.format(
         temp[0], config.learning_rate_g, config.learning_rate_d,
-        config.num_less_label_data, config.batch_size, config.max_training_steps
+        config.num_less_label_data, config.batch_size_label, config.batch_size_unlabel, config.max_training_steps
     )
 
     config.prefix = 'TripleGan_depth{}_growthRate{}_reduce{}_model_type{}_keepPro{}_d_loss_version{}'.format(
@@ -177,7 +177,7 @@ def main(argv=None):  # pylint: disable=unused-argument
         print("Data provider test images: ", data_provider.test.num_examples)
         print("Testing...")
 
-        model.test_and_record(all_result_file_name[0], 0,config,all_train_dir[0],data_provider.test, batch_size=config.batch_size)
+        model.test_and_record(all_result_file_name[0], 0,config,all_train_dir[0],data_provider.test, batch_size=config.batch_size_label)
 
     input_file_name = config.hdf5FileNametrain
     class_labels = []
