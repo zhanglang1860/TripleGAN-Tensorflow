@@ -166,6 +166,7 @@ class TripleGAN3D(object):
     self.alpha_cla_adv=0.01
     self.alpha_p = tf.placeholder(tf.float32, name='alpha_p')
     self.is_train=is_train
+    self.which_check_point = config.which_check_point
     if self.n_classes==3:
       self.n_z = config.n_z
     else:
@@ -611,7 +612,7 @@ class TripleGAN3D(object):
     else:
       ckpt = tf.train.get_checkpoint_state(self.save_path[0])
       ckpt.model_checkpoint_path = os.path.join(self.save_path[0],
-                                                "-"+which_check_point)
+                                                "-"+str(which_check_point))
 
 
     if ckpt and ckpt.model_checkpoint_path:
@@ -1026,7 +1027,7 @@ class TripleGAN3D(object):
 
 
     # Restore the model if we have
-    start_epoch = self.load_model()
+    start_epoch = self.load_model(self.which_check_point)
     # to illustrate overfitting with accuracy and loss later
     # f = open(self.train_dir +'/accuracy.txt', 'w')
     # f.write('epoch, train_acc, test_acc\n')
@@ -1061,15 +1062,15 @@ class TripleGAN3D(object):
       # else:
       #   alpha_p = 0.0
 
-      if epoch >= 200 and epoch<300:
+      if epoch >= 120 and epoch<200:
         alpha_p = 0.1
-      elif epoch >= 300 and epoch < 400:
+      elif epoch >= 200 and epoch < 300:
         alpha_p = 0.2
-      elif epoch >= 400 and epoch < 500:
+      elif epoch >= 300 and epoch < 400:
         alpha_p = 0.3
-      elif epoch >= 500 and epoch < 600:
+      elif epoch >= 400 and epoch < 500:
         alpha_p = 0.4
-      elif epoch >= 600:
+      elif epoch >= 500:
         alpha_p = 0.5
       else:
         alpha_p = 0.0

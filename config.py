@@ -74,7 +74,7 @@ def argparser(is_train=True):
 
     #maximum total batch_size 16
     parser.add_argument('--batch_size_label', type=int, default=8)
-    parser.add_argument('--batch_size_unlabel', type=int, default=9)
+    parser.add_argument('--batch_size_unlabel', type=int, default=8)
     # parser.add_argument('--batch_size_unlabel', type=int, default=0)
     parser.add_argument('--ckpt_save_step', type=int, default=50)
     parser.add_argument('--test_sample_step', type=int, default=100)
@@ -85,6 +85,7 @@ def argparser(is_train=True):
     parser.add_argument('--max_training_steps', type=int, default=1000)
     parser.add_argument('--reduce_lr_epoch_1', type=int, default=75)
     parser.add_argument('--reduce_lr_epoch_2', type=int, default=110)
+    parser.add_argument('--which_check_point', type=int, default=None)
     parser.add_argument('--queue_size', type=int, default=30)
     parser.add_argument('--learning_rate_g', type=float, default=0.0025)
     parser.add_argument('--learning_rate_d', type=float, default=0.01)
