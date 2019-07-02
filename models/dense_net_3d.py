@@ -159,13 +159,17 @@ class TripleGAN3D(object):
     self.train_dir= all_train_dir[whichFoldData]
     self.whichFoldData=whichFoldData
     self.renew_logs=config.renew_logs
-    self.n_z = config.n_z
+
     self.batch_size_label = config.batch_size_label
     self.batch_size_unlabel = config.batch_size_unlabel
     self.alpha = 0.5
     self.alpha_cla_adv=0.01
     self.alpha_p = tf.placeholder(tf.float32, name='alpha_p')
     self.is_train=is_train
+    if self.n_classes==3:
+      self.n_z = config.n_z
+    else:
+      self.n_z = config.n_z+1
     # self.unsup_weight = tf.placeholder(tf.float32, name='unsup_weight')
     # self.c_beta1 = tf.placeholder(tf.float32, name='c_beta1')
 
@@ -916,65 +920,43 @@ class TripleGAN3D(object):
     # weights = self.weights
     batch_size = self.batch_size_label
     with tf.variable_scope("Generator", reuse=reuse):
-      # if self.n_classes==3:
-      #   weights = {}
-      #   xavier_init = tf.contrib.layers.xavier_initializer()
-      #
-      #   weights['wg1'] = tf.get_variable("wg1", shape=[3, 3, 3, 8, 2], initializer=xavier_init)
-      #   weights['wg2'] = tf.get_variable("wg2", shape=[3, 3, 3, 16, 11], initializer=xavier_init)
-      #   weights['wg3'] = tf.get_variable("wg3", shape=[3, 3, 3, 16, 19], initializer=xavier_init)
-      #   weights['wg4'] = tf.get_variable("wg4", shape=[3, 3, 3, 16, 19], initializer=xavier_init)
-      #   weights['wg5'] = tf.get_variable("wg5", shape=[3, 3, 3, 16, 19], initializer=xavier_init)
-      #   weights['wg6'] = tf.get_variable("wg6", shape=[3, 3, 3, 1, 19], initializer=xavier_init)
-      # else:
-      #   weights = {}
-      #   xavier_init = tf.contrib.layers.xavier_initializer()
-      #
-      #   weights['wg1'] = tf.get_variable("wg1", shape=[3, 3, 3, 16, 2], initializer=xavier_init)
-      #   weights['wg2'] = tf.get_variable("wg2", shape=[3, 3, 3, 32, 18], initializer=xavier_init)
-      #   weights['wg3'] = tf.get_variable("wg3", shape=[3, 3, 3, 64, 34], initializer=xavier_init)
-      #   weights['wg4'] = tf.get_variable("wg4", shape=[3, 3, 3, 64, 66], initializer=xavier_init)
-      #   weights['wg5'] = tf.get_variable("wg5", shape=[3, 3, 3, 32, 66], initializer=xavier_init)
-      #
-      #   weights['wg6'] = tf.get_variable("wg6", shape=[3, 3, 3, 1, 34], initializer=xavier_init)
-
-
       x = tf.concat([z, y], axis=1)
-      x = tf.reshape(x, [-1, 4, 3, 3, x.get_shape().as_list()[1]//36])
-      all_output_shape= (batch_size, 4, 3, 3, 8)
-      g_1 = self.transpose_conv3d(x, 8, 3, all_output_shape, strides=[1, 1, 1, 1, 1], padding='SAME',kernel_name='kernel_1')
+      x = tf.reshape(x, [-1, 4, 3, 3, x.get_shape().as_list()[1] // 36])
+      all_output_shape = (batch_size, 4, 3, 3, 8)
+      g_1 = self.transpose_conv3d(x, 8, 3, all_output_shape, strides=[1, 1, 1, 1, 1], padding='SAME',
+                                  kernel_name='kernel_1')
       g_1 = tf.contrib.layers.batch_norm(g_1, is_training=phase_train)
       g_1 = tf.nn.relu(g_1)
 
       y = tf.reshape(y, [-1, 1, 1, 1, self.n_classes])
       g_1 = conv_concat(g_1, y)
 
-      all_output_shape= (batch_size, 7, 6, 6, 16)
-      g_2 = self.transpose_conv3d(g_1, 16, 3, all_output_shape, strides=strides, padding='SAME',kernel_name='kernel_2')
+      all_output_shape = (batch_size, 7, 6, 6, 16)
+      g_2 = self.transpose_conv3d(g_1, 16, 3, all_output_shape, strides=strides, padding='SAME', kernel_name='kernel_2')
       g_2 = tf.contrib.layers.batch_norm(g_2, is_training=phase_train)
       g_2 = tf.nn.relu(g_2)
       g_2 = conv_concat(g_2, y)
 
       all_output_shape = (batch_size, 14, 12, 12, 16)
-      g_3 = self.transpose_conv3d(g_2, 16, 3, all_output_shape, strides=strides, padding='SAME',kernel_name='kernel_3')
+      g_3 = self.transpose_conv3d(g_2, 16, 3, all_output_shape, strides=strides, padding='SAME', kernel_name='kernel_3')
       g_3 = tf.contrib.layers.batch_norm(g_3, is_training=phase_train)
       g_3 = tf.nn.relu(g_3)
       g_3 = conv_concat(g_3, y)
 
       all_output_shape = (batch_size, 28, 23, 23, 16)
-      g_4 = self.transpose_conv3d(g_3, 16, 3, all_output_shape, strides=strides, padding='SAME',kernel_name='kernel_4')
+      g_4 = self.transpose_conv3d(g_3, 16, 3, all_output_shape, strides=strides, padding='SAME', kernel_name='kernel_4')
       g_4 = tf.contrib.layers.batch_norm(g_4, is_training=phase_train)
       g_4 = tf.nn.relu(g_4)
       g_4 = conv_concat(g_4, y)
 
       all_output_shape = (batch_size, 55, 46, 46, 16)
-      g_5 = self.transpose_conv3d(g_4, 16, 3, all_output_shape, strides=strides, padding='SAME',kernel_name='kernel_5')
+      g_5 = self.transpose_conv3d(g_4, 16, 3, all_output_shape, strides=strides, padding='SAME', kernel_name='kernel_5')
       g_5 = tf.contrib.layers.batch_norm(g_5, is_training=phase_train)
       g_5 = tf.nn.relu(g_5)
       g_5 = conv_concat(g_5, y)
 
       all_output_shape = (batch_size, 109, 91, 91, 1)
-      g_6 = self.transpose_conv3d(g_5, 1, 3, all_output_shape, strides=strides, padding='SAME',kernel_name='kernel_6')
+      g_6 = self.transpose_conv3d(g_5, 1, 3, all_output_shape, strides=strides, padding='SAME', kernel_name='kernel_6')
 
       g_6 = tf.nn.tanh(g_6)
 
@@ -986,6 +968,8 @@ class TripleGAN3D(object):
       print g_6, 'g6'
 
       return g_6
+
+
 
 
   def transpose_conv3d(self, _input, out_features, kernel_size,all_output_shape,
