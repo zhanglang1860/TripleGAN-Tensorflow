@@ -162,11 +162,11 @@ def main(argv=None):
         total_training_time = time.time() - total_start_time
         # f.close()
         # fx.close()
-        print("\n each fold Total training time for all epoches : %s  and %s seconds" % (str(timedelta(
+        print("\n   Total training time for all epoches : %s  and %s seconds" % (str(timedelta(
             seconds=total_training_time)), total_training_time))
 
-        fxx = open(all_train_dir[0] + '/timeReport_fold' + str(0) + '.txt', 'w')
-        fxx.write("\n each fold Total training time for all epoches : %s  and %s seconds" % (str(timedelta(
+        fxx = open(all_train_dir[0] + '/train_timeReport' + str(0) + '.txt', 'w')
+        fxx.write("\n  Total training time for all epoches : %s  and %s seconds" % (str(timedelta(
             seconds=total_training_time)), total_training_time))
         fxx.write('\n')
         fxx.close()
@@ -176,8 +176,26 @@ def main(argv=None):
             model.load_model()
         print("Data provider test images: ", data_provider.test.num_examples)
         print("Testing...")
+        total_start_time = time.time()
 
         model.test_and_record(all_result_file_name[0], 0,config,all_train_dir[0],data_provider.test, batch_size=config.batch_size_label)
+        total_test_time = time.time() - total_start_time
+
+        print("\n Total test time for all epoches : %s  and %s seconds" % (str(timedelta(
+            seconds=total_test_time)), total_test_time))
+
+        fxx = open(all_train_dir[0] + '/test_timeReport' + str(0) + '.txt', 'w')
+        fxx.write("\n  Total test time for all epoches : %s  and %s seconds" % (str(timedelta(
+            seconds=total_test_time)), total_test_time))
+
+        fxx.write("\n  test time for each records : %s  and %s seconds" % (str(timedelta(
+            seconds=(total_test_time/float(data_provider.test.num_examples)))), (total_test_time/float(data_provider.test.num_examples))))
+
+
+        fxx.write('\n')
+        fxx.close()
+
+
 
     input_file_name = config.hdf5FileNametrain
     class_labels = []
@@ -192,10 +210,10 @@ def main(argv=None):
         last_class = name_list[4].split(".")
         class_labels.append(last_class[0])
 
-    if tf.gfile.Exists("./GANconfusionMatrixResults"):
-        log.infov("./GANconfusionMatrixResults")
+    if tf.gfile.Exists(all_train_dir[0] +"/GANconfusionMatrixResults"):
+        log.infov(all_train_dir[0] +"/GANconfusionMatrixResults")
     else:
-        os.makedirs("./GANconfusionMatrixResults")
+        os.makedirs(all_train_dir[0] +"/GANconfusionMatrixResults")
 
     accuracy_10folds_all = []
     fold_write = 0
@@ -205,7 +223,7 @@ def main(argv=None):
         else:
             accuracy, cr, cm = calculateConfusionMatrix(each_result_file_name, class_labels, './train_dir')
 
-        f = open("./GANconfusionMatrixResults/ConfusionMatrix-" + each_result_file_name + ".txt", 'w')
+        f = open(all_train_dir[0] +"/GANconfusionMatrixResults/ConfusionMatrix-" + each_result_file_name + ".txt", 'w')
         log.info("Fold: {}".format(fold_write))
         f.write("Fold: {}\n".format(fold_write))
         f.write(

@@ -38,6 +38,10 @@ def argparser(is_train=True):
                                  'id.txt'])
 
 
+
+
+
+
     parser.add_argument('--dump_result', type=str2bool, default=False)
     # Model
 
@@ -61,7 +65,7 @@ def argparser(is_train=True):
     # learning
     parser.add_argument('--max_sample', type=int, default=50000,
                         help='num of samples the model can see')
-    parser.add_argument('--max_training_steps', type=int, default=1000)
+    parser.add_argument('--max_training_steps', type=int, default=2)
     parser.add_argument('--reduce_lr_epoch_1', type=int, default=75)
     parser.add_argument('--reduce_lr_epoch_2', type=int, default=110)
     parser.add_argument('--which_check_point', type=int, default=None)

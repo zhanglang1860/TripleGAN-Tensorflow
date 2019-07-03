@@ -196,6 +196,8 @@ class TripleGAN3D(object):
   def _define_inputs(self):
     self.is_training = tf.placeholder_with_default(bool(self.is_train), [], name='is_training')
     shape_label = [self.batch_size_label]
+
+
     shape_label.extend(self.data_shape)
 
     shape_unlabel = [self.batch_size_unlabel]
@@ -226,7 +228,12 @@ class TripleGAN3D(object):
 
     """ Graph Input """
     # images
-    self.labelled_inputs = tf.placeholder(shape=shape_label, dtype=tf.float32, name='real_images')
+
+    if self.is_training==False:
+      self.labelled_inputs = tf.placeholder(shape=shape_label, dtype=tf.float32, name='real_images')
+    else:
+      self.labelled_inputs = tf.placeholder(shape=shape_label, dtype=tf.float32, name='real_images')
+
     self.unlabelled_inputs = tf.placeholder(shape=shape_unlabel, dtype=tf.float32, name='unlabelled_images')
     self.test_inputs = tf.placeholder(shape=shape_label, dtype=tf.float32, name='test_images')
 
@@ -1016,9 +1023,13 @@ class TripleGAN3D(object):
     return self.prediction, logits
 
 
-  # (Updated)
+
   def train_all_epochs(self, config):
-    n_epochs           = config.max_training_steps
+    if config.hdf5FileNametrain == 'train_MRIdata_2_AD_MCI.hdf5':
+      n_epochs=145
+    else:
+      n_epochs = 128
+    # n_epochs           = config.max_training_steps
     init_learning_rate = config.learning_rate_d
     batch_size_label  = config.batch_size_label
     batch_size_unlabel = config.batch_size_unlabel
@@ -1062,16 +1073,8 @@ class TripleGAN3D(object):
       # else:
       #   alpha_p = 0.0
 
-      if epoch >= 120 and epoch<200:
-        alpha_p = 0.1
-      elif epoch >= 200 and epoch < 300:
-        alpha_p = 0.2
-      elif epoch >= 300 and epoch < 400:
-        alpha_p = 0.3
-      elif epoch >= 400 and epoch < 500:
-        alpha_p = 0.4
-      elif epoch >= 500:
-        alpha_p = 0.5
+      if epoch >= 120:
+        alpha_p = 0.05
       else:
         alpha_p = 0.0
 
@@ -1218,7 +1221,7 @@ class TripleGAN3D(object):
     evaler = EvalManager(self.train_dir)
     num_examples = data.num_examples
     total_accuracy = []
-    batch_size=1
+    # batch_size=1
 
     for i in range(num_examples // batch_size):
       batch = data.next_batch(batch_size)
