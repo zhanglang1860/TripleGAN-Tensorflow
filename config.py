@@ -37,27 +37,6 @@ def argparser(is_train=True):
                                  'test_MRIdata_2_AD_Normal_id.txt', 'test_MRIdata_2_MCI_Normal_id.txt',
                                  'id.txt'])
 
-    # parser.add_argument('--hdf5FileNametrain', type=str, default='train_MRIdata_2_AD_Normal.hdf5',
-    #                     choices=['train_MRIdata_3_AD_MCI_Normal.hdf5', 'train_MRIdata_2_AD_MCI.hdf5',
-    #                              'train_MRIdata_2_AD_Normal.hdf5', 'train_MRIdata_2_MCI_Normal.hdf5',
-    #                              'train_MRIdata_3_AD_MCI_Normal.hdf5', 'data.hdf5'])
-    # parser.add_argument('--idFileNametrain', type=str, default='train_MRIdata_2_AD_Normal_id.txt',
-    #                     choices=['train_MRIdata_3_AD_MCI_Normal_id.txt', 'train_MRIdata_2_AD_MCI_id.txt',
-    #                              'train_MRIdata_2_AD_Normal_id.txt', 'train_MRIdata_2_MCI_Normal_id.txt',
-    #                              'train_MRIdata_3_AD_MCI_Normal_id.txt', 'id.txt'])
-    # parser.add_argument('--testhdf5FileName', type=str, default='test_MRIdata_2_AD_Normal.hdf5',
-    #                     choices=['test_MRIdata_3_AD_MCI_Normal.hdf5', 'test_MRIdata_2_AD_MCI.hdf5',
-    #                              'test_MRIdata_2_AD_Normal.hdf5', 'test_MRIdata_2_MCI_Normal.hdf5',
-    #                              'data.hdf5'])
-    # parser.add_argument('--testidFileName', type=str, default='test_MRIdata_2_AD_Normal_id.txt',
-    #                     choices=['test_MRIdata_3_AD_MCI_Normal_id.txt', 'test_MRIdata_2_AD_MCI_id.txt',
-    #                              'test_MRIdata_2_AD_Normal_id.txt', 'test_MRIdata_2_MCI_Normal_id.txt',
-    #                              'id.txt'])
-
-
-
-
-
 
     parser.add_argument('--dump_result', type=str2bool, default=False)
     # Model
