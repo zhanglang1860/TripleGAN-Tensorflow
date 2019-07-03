@@ -124,7 +124,7 @@ def calculateConfusionMatrix(each_result_file_name,class_labels,train_dir):
 
 
 
-def main(argv=None):  # pylint: disable=unused-argument
+def main(argv=None):
 
     config = argparser(is_train=True)
     all_train_dir, all_result_file_name = construct_train_dir(config)
