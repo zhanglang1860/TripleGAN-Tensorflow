@@ -154,6 +154,14 @@ def main(argv=None):
     model = TripleGAN3D(config, data_provider, all_train_dir, 0, is_train=True)
 
 
+    if tf.gfile.Exists(all_train_dir[0] +"/GANconfusionMatrixResults"):
+        log.infov(all_train_dir[0] +"/GANconfusionMatrixResults")
+    else:
+        os.makedirs(all_train_dir[0] +"/GANconfusionMatrixResults")
+
+
+
+
     if config.train:
         total_start_time = time.time()
         print("Data provider train labelled images: ", data_provider.train_labelled.num_examples)
@@ -165,7 +173,7 @@ def main(argv=None):
         print("\n   Total training time for all epoches : %s  and %s seconds" % (str(timedelta(
             seconds=total_training_time)), total_training_time))
 
-        fxx = open(all_train_dir[0] + '/train_timeReport' + str(0) + '.txt', 'w')
+        fxx = open(all_train_dir[0] + "/GANconfusionMatrixResults/train_timeReport.txt", 'w')
         fxx.write("\n  Total training time for all epoches : %s  and %s seconds" % (str(timedelta(
             seconds=total_training_time)), total_training_time))
         fxx.write('\n')
@@ -184,7 +192,7 @@ def main(argv=None):
         print("\n Total test time for all epoches : %s  and %s seconds" % (str(timedelta(
             seconds=total_test_time)), total_test_time))
 
-        fxx = open(all_train_dir[0] + '/test_timeReport' + str(0) + '.txt', 'w')
+        fxx = open(all_train_dir[0] + "/GANconfusionMatrixResults/test_timeReport.txt", 'w')
         fxx.write("\n  Total test time for all epoches : %s  and %s seconds" % (str(timedelta(
             seconds=total_test_time)), total_test_time))
 
@@ -210,10 +218,7 @@ def main(argv=None):
         last_class = name_list[4].split(".")
         class_labels.append(last_class[0])
 
-    if tf.gfile.Exists(all_train_dir[0] +"/GANconfusionMatrixResults"):
-        log.infov(all_train_dir[0] +"/GANconfusionMatrixResults")
-    else:
-        os.makedirs(all_train_dir[0] +"/GANconfusionMatrixResults")
+
 
     accuracy_10folds_all = []
     fold_write = 0
