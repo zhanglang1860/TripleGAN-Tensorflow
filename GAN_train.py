@@ -158,7 +158,7 @@ def main(argv=None):
         total_start_time = time.time()
         print("Data provider train labelled images: ", data_provider.train_labelled.num_examples)
         print("Data provider train unlabelled images: ", data_provider.train_unlabelled.num_examples)
-        model.train_all_epochs(config)
+        best_epoch = model.train_all_epochs(config)
         total_training_time = time.time() - total_start_time
         # f.close()
         # fx.close()
@@ -172,8 +172,8 @@ def main(argv=None):
         fxx.close()
 
     if config.test:
-        if not config.train:
-            model.load_model()
+
+        model.load_model(best_epoch)
         print("Data provider test images: ", data_provider.test.num_examples)
         print("Testing...")
         total_start_time = time.time()
@@ -223,9 +223,9 @@ def main(argv=None):
         else:
             accuracy, cr, cm = calculateConfusionMatrix(each_result_file_name, class_labels, './train_dir')
 
-        f = open(all_train_dir[0] +"/GANconfusionMatrixResults/ConfusionMatrix-" + each_result_file_name + ".txt", 'w')
+        f = open(all_train_dir[0] +"/GANconfusionMatrixResults/ConfusionMatrix.txt", 'w')
         log.info("Fold: {}".format(fold_write))
-        f.write("Fold: {}\n".format(fold_write))
+        f.write(each_result_file_name)
         f.write(
             '{}\n\nClassification Report\n\n{}\n\nConfusion Matrix\n\n{}\n'.format(config.hdf5FileNametrain, cr, cm))
         f.write("accuracy: {}\n".format(accuracy))

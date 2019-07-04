@@ -1035,6 +1035,8 @@ class TripleGAN3D(object):
     batch_size_unlabel = config.batch_size_unlabel
     reduce_lr_epoch_1  = config.reduce_lr_epoch_1
     reduce_lr_epoch_2  = config.reduce_lr_epoch_2
+    best_epoch = 0
+    best_validation_accuracy = 0
 
 
     # Restore the model if we have
@@ -1115,6 +1117,10 @@ class TripleGAN3D(object):
         self.data_provider.test, batch_size_label)
 
       self.log_one_metric(mean_accuracy, epoch, prefix='test_c_accuracy')
+      if mean_accuracy>best_validation_accuracy:
+          best_epoch = epoch
+          best_validation_accuracy = mean_accuracy
+
 
       time_per_epoch = time.time() - start_time
       seconds_left = int((n_epochs - epoch) * time_per_epoch)
@@ -1125,6 +1131,7 @@ class TripleGAN3D(object):
       self.save_model(global_step=epoch)
       self.summary_writer.add_summary(summary, global_step=epoch)
       self.summary_op = tf.summary.merge_all()
+    return best_epoch
 
 
 
