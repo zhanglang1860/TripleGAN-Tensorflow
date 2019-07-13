@@ -58,9 +58,9 @@ def construct_train_dir(config):
         config.num_less_label_data, config.batch_size_label, config.batch_size_unlabel, config.max_training_steps
     )
 
-    config.prefix = 'TripleGan_depth{}_growthRate{}_reduce{}_model_type{}_keepPro{}_G_core{}_G_rank{}_C_core{}_C_rank{}_D_core{}_D_rank{}'.format(
-        config.depth, config.growth_rate, config.reduction,
-        config.model_type, config.keep_prob,config.split_dimension_core_G,config.tt_rank_G,config.split_dimension_core_C,config.tt_rank_C,config.split_dimension_core_D,config.tt_rank_D
+    config.prefix = 'GsoP0{}_GsoP1{}_GsoP2{}_TripleGan_G_core{}_G_rank{}_C_core{}_C_rank{}_D_core{}_D_rank{}_depth{}_growthRate{}_reduce{}_model_type{}'.format(
+         config.block_0_GsoP,config.block_1_GsoP,config.block_2_GsoP, config.split_dimension_core_G,config.tt_rank_G,config.split_dimension_core_C,config.tt_rank_C,config.split_dimension_core_D,config.tt_rank_D,config.depth, config.growth_rate, config.reduction,
+        config.model_type
     )
 
     train_dir = './train_dir/%s-%s' % (
@@ -73,7 +73,7 @@ def construct_train_dir(config):
         os.makedirs(train_dir)
 
     log.infov("Train Dir: %s", train_dir)
-    result_file_name = hyper_parameter_all_folds + config.prefix + '-' + time.strftime("%Y%m%d-%H%M%S")
+    result_file_name = hyper_parameter_all_folds + config.prefix
 
     all_train_dir.append(train_dir)
     all_results_file_name.append(result_file_name)

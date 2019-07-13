@@ -15,7 +15,9 @@ from ops import conv3dtensorNet
 from ops import conv3d_transpose_tensor
 
 from ops import fcTensorNet
-
+from tensorflow.python.ops import math_ops
+from tensorflow.python.ops import array_ops
+from tflearn.layers.conv import grouped_conv_2d
 
 import csv
 TF_VERSION = float('.'.join(tf.__version__.split('.')[:2]))
@@ -182,6 +184,12 @@ class TripleGAN3D(object):
     self.n_z = config.n_z
     self.batch_size_label = config.batch_size_label
     self.batch_size_unlabel = config.batch_size_unlabel
+
+    self.block_0_GsoP = config.block_0_GsoP
+    self.block_1_GsoP = config.block_1_GsoP
+    self.block_2_GsoP = config.block_2_GsoP
+
+
     self.alpha = 0.5
     self.alpha_cla_adv=0.01
     self.alpha_p = tf.placeholder(tf.float32, name='alpha_p')
@@ -239,8 +247,121 @@ class TripleGAN3D(object):
 
     self.z_vector = tf.placeholder(shape=[self.batch_size_label, self.n_z], dtype=tf.float32)
 
+  def norm_and_act(input, is_train, norm='batch', activation_fn=None, name="bn_act"):
+    """
+    Apply normalization and/or activation function
+    """
+    with tf.variable_scope(name):
+      _ = input
+      if activation_fn is not None:
+        _ = activation_fn(_)
+      if norm is not None and norm is not False:
+        if norm == 'batch':
+          _ = tf.contrib.layers.batch_norm(
+            _, center=True, scale=True,
+            updates_collections=None,
+          )
+
+        elif norm == 'None':
+          _ = _
+        else:
+          raise NotImplementedError
+    return _
+
+  def _covariance(self,x, diag):
+    """Defines the covariance operation of a matrix.
+
+    Args:
+    x: a matrix Tensor. Dimension 0 should contain the number of examples.
+    diag: if True, it computes the diagonal covariance.
+
+    Returns:
+    A Tensor representing the covariance of x. In the case of
+    diagonal matrix just the diagonal is returned.
+    """
+    x_dim = x.get_shape().as_list()
+    x = tf.reshape(x, [x_dim[0], x_dim[1]*x_dim[2], x_dim[3]])
+
+    f = tf.transpose(x, [2, 0, 1])
+    fshape = f.get_shape().as_list()
+    g = tf.reshape(f, [-1])
+    shape_size = fshape[1] * fshape[2]
+    covariance_matrix_shape = np.dtype('int32').type(shape_size)
+    h = tf.reshape(g, [-1, covariance_matrix_shape])
+    h = tf.transpose(h, [1, 0])
+
+    num_points = math_ops.to_float(array_ops.shape(h)[0])
+    h -= math_ops.reduce_mean(h, 0, keepdims=True)
+    if diag:
+      cov = math_ops.reduce_sum(math_ops.square(h), 0, keepdims=True) / (num_points - 1)
+    else:
+      cov = math_ops.matmul(h, h, transpose_a=True) / (num_points - 1)
 
 
+    cov = self.batch_norm(cov)
+    return cov
+
+
+  def Global_Covariance_Matrix(self,x, diag):
+    x = self.batch_norm(x)
+    # ReLU
+    with tf.name_scope("ReLU"):
+      x = tf.nn.relu(x)
+    covariance_matrix_shape = x.get_shape().as_list()
+    for i in range(0, covariance_matrix_shape[0]):
+      each_image_covariance_matrix = self._covariance(x[i], diag)
+      each_image_covariance_matrix = tf.reshape(each_image_covariance_matrix,
+                                                [1, covariance_matrix_shape[4], covariance_matrix_shape[4]])
+      if i == 0:
+        result = each_image_covariance_matrix
+      else:
+        result = tf.concat([result, each_image_covariance_matrix], axis=0)
+    return result
+
+  def squeeze_excitation_layer(self,input_x, name="GsoP"):
+    with tf.variable_scope(name):
+      # BN
+      output = self.batch_norm(input_x)
+      # ReLU
+      with tf.name_scope("ReLU"):
+        output = tf.nn.relu(output)
+      orignialInput = input_x
+      out_dim = output.get_shape().as_list()[4]
+      covariance_matrix_shape = out_dim / 6
+      covariance_matrix_shape = np.dtype('int32').type(covariance_matrix_shape)
+
+
+      squeeze = self.conv3d(
+        output,
+        out_features=covariance_matrix_shape,
+        kernel_size=1,
+        strides=[1, 1, 1, 1, 1])
+
+      # squeeze = slim.conv2d(orignialInput, covariance_matrix_shape, [1, 1], stride=1, activation_fn=None)
+
+      squeeze = self.Global_Covariance_Matrix(squeeze, False)
+
+      squeeze = tf.reshape(squeeze, [-1, 1, covariance_matrix_shape, covariance_matrix_shape])
+
+      # squeeze = norm_and_act(squeeze, is_train, norm='batch', activation_fn=None)
+
+      # excitation = conv2d_group(squeeze, covariance_matrix_shape, name)
+      excitation = grouped_conv_2d(squeeze, 4, [1, covariance_matrix_shape], strides=1, padding='VALID', name=name)
+
+      scale = self.excitation_layer(excitation, out_dim, orignialInput, name=name)
+    return scale
+
+  def excitation_layer(self, input_x, out_dim, orignialInput, is_train=True, name="GsoPexcitation"):
+    with tf.variable_scope(name):
+      input_x = self.batch_norm(input_x)
+      # ReLU
+      with tf.name_scope("ReLU"):
+        excitation = tf.nn.relu(input_x)
+      excitation = slim.conv2d(excitation, out_dim, [1, 1], stride=1, activation_fn=None)
+      excitation = tf.sigmoid(excitation)
+      excitation = tf.reshape(excitation, [-1, 1, 1,1, out_dim])
+      scale = orignialInput * excitation
+    return scale
 
   def discriminator(self, x, y_, scope="Discriminator", is_training=True, reuse=False, split_dimension_core = 3,tt_rank = 3):
     with tf.variable_scope(scope, reuse=reuse):
@@ -266,7 +387,16 @@ class TripleGAN3D(object):
         for block in range(self.total_blocks):
           with tf.variable_scope("Block_%d" % block):
             output = self.add_block(output, growth_rate, layers_per_block,split_dimension_core,tt_rank,y)
-          # last block exist without transition layer
+            # if block==0 and self.block_0_GsoP==1:
+            #   output = self.squeeze_excitation_layer(output, name='GsoP{}'.format(block + 1))
+            # elif block==1 and self.block_1_GsoP==1:
+            #   output = self.squeeze_excitation_layer(output, name='GsoP{}'.format(block + 1))
+            # elif block == 2 and self.block_2_GsoP == 1:
+            #   output = self.squeeze_excitation_layer(output, name='GsoP{}'.format(block + 1))
+            # else:
+            #   output = output
+
+              # last block exist without transition layer
           if block != self.total_blocks - 1:
             with tf.variable_scope("Transition_after_block_%d" % block):
               # pool_depth = 1 if block == 0 else 2
@@ -928,6 +1058,15 @@ class TripleGAN3D(object):
       for block in range(self.total_blocks):
         with tf.variable_scope("Block_%d" % block):
           output = self.add_block(output, growth_rate, layers_per_block,split_dimension_core,tt_rank)
+          if block == 0 and self.block_0_GsoP == 1:
+            output = self.squeeze_excitation_layer(output, name='GsoP{}'.format(block + 1))
+          elif block == 1 and self.block_1_GsoP == 1:
+            output = self.squeeze_excitation_layer(output, name='GsoP{}'.format(block + 1))
+          elif block == 2 and self.block_2_GsoP == 1:
+            output = self.squeeze_excitation_layer(output, name='GsoP{}'.format(block + 1))
+          else:
+            output = output
+
         # last block exist without transition layer
         if block != self.total_blocks - 1:
           with tf.variable_scope("Transition_after_block_%d" % block):

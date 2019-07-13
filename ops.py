@@ -6,6 +6,7 @@ from util import log
 from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import array_ops
 import tensornet
+from tflearn.layers.conv import grouped_conv_2d
 
 import re
 TOWER_NAME = 'tower'
@@ -34,6 +35,7 @@ def selu(x):
     alpha = 1.6732632423543772848170429916717
     scale = 1.0507009873554804934193349852946
     return scale * tf.where(x > 0.0, x, alpha * tf.exp(x) - alpha)
+
 
 
 def huber_loss(labels, predictions, delta=1.0):

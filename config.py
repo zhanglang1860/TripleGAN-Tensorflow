@@ -93,7 +93,7 @@ def argparser(is_train=True):
     # learning
     parser.add_argument('--max_sample', type=int, default=50000,
                         help='num of samples the model can see')
-    parser.add_argument('--max_training_steps', type=int, default=150)
+    parser.add_argument('--max_training_steps', type=int, default=1)
     parser.add_argument('--reduce_lr_epoch_1', type=int, default=75)
     parser.add_argument('--reduce_lr_epoch_2', type=int, default=110)
     parser.add_argument('--queue_size', type=int, default=30)
@@ -157,6 +157,16 @@ def argparser(is_train=True):
         '--depth', '-d', type=int, choices=[15, 20, 25, 30, 35, 40, 100, 190, 250],
         default=30,
         help='Depth of whole network, restricted to paper choices')
+
+    parser.add_argument(
+        '--block_0_GsoP', type=int, default=1, metavar='',
+        help='block 0 set 1 will do GsoP, 0 will not do GsoP')
+    parser.add_argument(
+        '--block_1_GsoP', type=int, default=1, metavar='',
+        help='block 1 set 1 will do GsoP, 0 will not do GsoP')
+    parser.add_argument(
+        '--block_2_GsoP', type=int, default=1, metavar='',
+        help='block 2 set 1 will do GsoP, 0 will not do GsoP')
 
     parser.add_argument(
         '--total_blocks', '-tb', type=int, default=3, metavar='',
