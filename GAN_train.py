@@ -58,8 +58,8 @@ def construct_train_dir(config):
         config.num_less_label_data, config.batch_size_label, config.batch_size_unlabel, config.max_training_steps
     )
 
-    config.prefix = 'GsoP0{}_GsoP1{}_GsoP2{}_TripleGan_G_core{}_G_rank{}_C_core{}_C_rank{}_D_core{}_D_rank{}_depth{}_growthRate{}_reduce{}_model_type{}'.format(
-         config.block_0_GsoP,config.block_1_GsoP,config.block_2_GsoP, config.split_dimension_core_G,config.tt_rank_G,config.split_dimension_core_C,config.tt_rank_C,config.split_dimension_core_D,config.tt_rank_D,config.depth, config.growth_rate, config.reduction,
+    config.prefix = 'GsoP_version{}_GsoP0{}_GsoP1{}_GsoP2{}_TripleGan_G_core{}_G_rank{}_C_core{}_C_rank{}_D_core{}_D_rank{}_depth{}_growthRate{}_reduce{}_model_type{}'.format(
+         config.GsoP_version, config.block_0_GsoP,config.block_1_GsoP,config.block_2_GsoP, config.split_dimension_core_G,config.tt_rank_G,config.split_dimension_core_C,config.tt_rank_C,config.split_dimension_core_D,config.tt_rank_D,config.depth, config.growth_rate, config.reduction,
         config.model_type
     )
 

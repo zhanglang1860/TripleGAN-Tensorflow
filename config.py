@@ -93,7 +93,7 @@ def argparser(is_train=True):
     # learning
     parser.add_argument('--max_sample', type=int, default=50000,
                         help='num of samples the model can see')
-    parser.add_argument('--max_training_steps', type=int, default=1)
+    parser.add_argument('--max_training_steps', type=int, default=150)
     parser.add_argument('--reduce_lr_epoch_1', type=int, default=75)
     parser.add_argument('--reduce_lr_epoch_2', type=int, default=110)
     parser.add_argument('--queue_size', type=int, default=30)
@@ -109,6 +109,8 @@ def argparser(is_train=True):
 
     parser.add_argument('--split_dimension_core_D', type=int, default=3)
     parser.add_argument('--tt_rank_D', type=int, default=12)
+
+    parser.add_argument('--GsoP_version', type=int, default=1)
 
 
 

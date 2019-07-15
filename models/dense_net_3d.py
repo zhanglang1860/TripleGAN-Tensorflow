@@ -146,6 +146,7 @@ class TripleGAN3D(object):
 
     self.split_dimension_core_D = config.split_dimension_core_D
     self.tt_rank_D = config.tt_rank_D
+    self.GsoP_version = config.GsoP_version
 
 
 
@@ -247,7 +248,7 @@ class TripleGAN3D(object):
 
     self.z_vector = tf.placeholder(shape=[self.batch_size_label, self.n_z], dtype=tf.float32)
 
-  def norm_and_act(input, is_train, norm='batch', activation_fn=None, name="bn_act"):
+  def norm_and_act(self,input, is_train, norm='batch', activation_fn=None, name="bn_act"):
     """
     Apply normalization and/or activation function
     """
@@ -257,16 +258,19 @@ class TripleGAN3D(object):
         _ = activation_fn(_)
       if norm is not None and norm is not False:
         if norm == 'batch':
-          _ = tf.contrib.layers.batch_norm(
-            _, center=True, scale=True,
-            updates_collections=None,
-          )
+          _ = self.batch_norm(_)
 
         elif norm == 'None':
           _ = _
         else:
           raise NotImplementedError
     return _
+
+  def lrelu(x, leak=0.2, name="lrelu"):
+      with tf.variable_scope(name):
+          f1 = 0.5 * (1 + leak)
+          f2 = 0.5 * (1 - leak)
+          return f1 * x + f2 * abs(x)
 
   def _covariance(self,x, diag):
     """Defines the covariance operation of a matrix.
@@ -298,15 +302,14 @@ class TripleGAN3D(object):
       cov = math_ops.matmul(h, h, transpose_a=True) / (num_points - 1)
 
 
-    cov = self.batch_norm(cov)
+    cov = self.batch_norm_GsoP(cov)
     return cov
 
 
   def Global_Covariance_Matrix(self,x, diag):
+
+    x = tf.nn.leaky_relu(x, alpha=0.1, name='Leaky_ReLU')
     x = self.batch_norm(x)
-    # ReLU
-    with tf.name_scope("ReLU"):
-      x = tf.nn.relu(x)
     covariance_matrix_shape = x.get_shape().as_list()
     for i in range(0, covariance_matrix_shape[0]):
       each_image_covariance_matrix = self._covariance(x[i], diag)
@@ -320,19 +323,23 @@ class TripleGAN3D(object):
 
   def squeeze_excitation_layer(self,input_x, name="GsoP"):
     with tf.variable_scope(name):
-      # BN
-      output = self.batch_norm(input_x)
-      # ReLU
-      with tf.name_scope("ReLU"):
-        output = tf.nn.relu(output)
+
+      if self.GsoP_version==2:
+        input_x= tf.nn.leaky_relu(input_x, alpha=0.1, name='Leaky_ReLU')
+        input_x = self.batch_norm(input_x)
+      # # BN
+      # output = self.batch_norm(input_x)
+      # # ReLU
+      # with tf.name_scope("ReLU"):
+      #   output = tf.nn.relu(output)
       orignialInput = input_x
-      out_dim = output.get_shape().as_list()[4]
+      out_dim = input_x.get_shape().as_list()[4]
       covariance_matrix_shape = out_dim / 6
       covariance_matrix_shape = np.dtype('int32').type(covariance_matrix_shape)
 
 
       squeeze = self.conv3d(
-        output,
+        input_x,
         out_features=covariance_matrix_shape,
         kernel_size=1,
         strides=[1, 1, 1, 1, 1])
@@ -353,10 +360,8 @@ class TripleGAN3D(object):
 
   def excitation_layer(self, input_x, out_dim, orignialInput, is_train=True, name="GsoPexcitation"):
     with tf.variable_scope(name):
-      input_x = self.batch_norm(input_x)
-      # ReLU
-      with tf.name_scope("ReLU"):
-        excitation = tf.nn.relu(input_x)
+      excitation = tf.nn.leaky_relu(input_x, alpha=0.1, name='Leaky_ReLU')
+      excitation = self.batch_norm(excitation)
       excitation = slim.conv2d(excitation, out_dim, [1, 1], stride=1, activation_fn=None)
       excitation = tf.sigmoid(excitation)
       excitation = tf.reshape(excitation, [-1, 1, 1,1, out_dim])
@@ -912,6 +917,14 @@ class TripleGAN3D(object):
     return output
 
   # (Updated)
+
+  def batch_norm_GsoP(self,x):
+    epsilon = 1e-3
+    batch_mean, batch_var = tf.nn.moments(x, [1])
+    return tf.nn.batch_normalization(x, batch_mean, batch_var, offset=None, scale=None, variance_epsilon=epsilon)
+
+
+
   def batch_norm(self, _input):
     with tf.name_scope("batch_normalization"):
       output = tf.contrib.layers.batch_norm(

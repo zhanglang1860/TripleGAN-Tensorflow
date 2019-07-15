@@ -1,16 +1,135 @@
 
 
-
-python GAN_train.py --train --test --hdf5FileNametrain train_MRIdata_2_MCI_Normal.hdf5 --idFileNametrain train_MRIdata_2_MCI_Normal_id.txt --testhdf5FileName test_MRIdata_2_MCI_Normal.hdf5 --testidFileName test_MRIdata_2_MCI_Normal_id.txt  --valhdf5FileName validate_MRIdata_2_MCI_Normal.hdf5 --validFileName validate_MRIdata_2_MCI_Normal_id.txt --gpu_id 0 --split_dimension_core_G 3 --tt_rank_G 8 --split_dimension_core_C 3 --tt_rank_C 20 --split_dimension_core_D 3 --tt_rank_D 12 --block_1_GsoP 0 --block_2_GsoP 0
-
-
-python GAN_train.py --train --test --hdf5FileNametrain train_MRIdata_2_MCI_Normal.hdf5 --idFileNametrain train_MRIdata_2_MCI_Normal_id.txt --testhdf5FileName test_MRIdata_2_MCI_Normal.hdf5 --testidFileName test_MRIdata_2_MCI_Normal_id.txt  --valhdf5FileName validate_MRIdata_2_MCI_Normal.hdf5 --validFileName validate_MRIdata_2_MCI_Normal_id.txt --gpu_id 1 --split_dimension_core_G 3 --tt_rank_G 8 --split_dimension_core_C 3 --tt_rank_C 20 --split_dimension_core_D 3 --tt_rank_D 12 --block_0_GsoP 0 --block_2_GsoP 0
+python GAN_train.py --train --test --hdf5FileNametrain train_MRIdata_2_MCI_Normal.hdf5 --idFileNametrain train_MRIdata_2_MCI_Normal_id.txt --testhdf5FileName test_MRIdata_2_MCI_Normal.hdf5 --testidFileName test_MRIdata_2_MCI_Normal_id.txt  --valhdf5FileName validate_MRIdata_2_MCI_Normal.hdf5 --validFileName validate_MRIdata_2_MCI_Normal_id.txt --gpu_id 0 --split_dimension_core_G 3 --tt_rank_G 8 --split_dimension_core_C 3 --tt_rank_C 20 --split_dimension_core_D 3 --tt_rank_D 12 --batch_size_label 7 --batch_size_unlabel 7  --block_0_GsoP 0 --block_2_GsoP 0
 
 
-python GAN_train.py --train --test --hdf5FileNametrain train_MRIdata_2_MCI_Normal.hdf5 --idFileNametrain train_MRIdata_2_MCI_Normal_id.txt --testhdf5FileName test_MRIdata_2_MCI_Normal.hdf5 --testidFileName test_MRIdata_2_MCI_Normal_id.txt  --valhdf5FileName validate_MRIdata_2_MCI_Normal.hdf5 --validFileName validate_MRIdata_2_MCI_Normal_id.txt --gpu_id 2 --split_dimension_core_G 3 --tt_rank_G 8 --split_dimension_core_C 3 --tt_rank_C 20 --split_dimension_core_D 3 --tt_rank_D 12 --block_0_GsoP 0 --block_1_GsoP 0
+python GAN_train.py --train --test --hdf5FileNametrain train_MRIdata_2_MCI_Normal.hdf5 --idFileNametrain train_MRIdata_2_MCI_Normal_id.txt --testhdf5FileName test_MRIdata_2_MCI_Normal.hdf5 --testidFileName test_MRIdata_2_MCI_Normal_id.txt  --valhdf5FileName validate_MRIdata_2_MCI_Normal.hdf5 --validFileName validate_MRIdata_2_MCI_Normal_id.txt --gpu_id 1 --split_dimension_core_G 3 --tt_rank_G 8 --split_dimension_core_C 3 --tt_rank_C 20 --split_dimension_core_D 3 --tt_rank_D 12  --batch_size_label 7 --batch_size_unlabel 7 --block_0_GsoP 0 --block_1_GsoP 0
 
 
-python GAN_train.py --train --test --hdf5FileNametrain train_MRIdata_2_MCI_Normal.hdf5 --idFileNametrain train_MRIdata_2_MCI_Normal_id.txt --testhdf5FileName test_MRIdata_2_MCI_Normal.hdf5 --testidFileName test_MRIdata_2_MCI_Normal_id.txt  --valhdf5FileName validate_MRIdata_2_MCI_Normal.hdf5 --validFileName validate_MRIdata_2_MCI_Normal_id.txt --gpu_id 3 --split_dimension_core_G 3 --tt_rank_G 8 --split_dimension_core_C 3 --tt_rank_C 20 --split_dimension_core_D 3 --tt_rank_D 12
+
+
+
+
+python GAN_train.py --train --test --hdf5FileNametrain train_MRIdata_2_MCI_Normal.hdf5 --idFileNametrain train_MRIdata_2_MCI_Normal_id.txt --testhdf5FileName test_MRIdata_2_MCI_Normal.hdf5 --testidFileName test_MRIdata_2_MCI_Normal_id.txt  --valhdf5FileName validate_MRIdata_2_MCI_Normal.hdf5 --validFileName validate_MRIdata_2_MCI_Normal_id.txt --gpu_id 2 --split_dimension_core_G 3 --tt_rank_G 8 --split_dimension_core_C 3 --tt_rank_C 20 --split_dimension_core_D 3 --tt_rank_D 12 --batch_size_label 7 --batch_size_unlabel 7  --block_0_GsoP 0 --block_2_GsoP 0 --GsoP_version 2
+
+
+python GAN_train.py --train --test --hdf5FileNametrain train_MRIdata_2_MCI_Normal.hdf5 --idFileNametrain train_MRIdata_2_MCI_Normal_id.txt --testhdf5FileName test_MRIdata_2_MCI_Normal.hdf5 --testidFileName test_MRIdata_2_MCI_Normal_id.txt  --valhdf5FileName validate_MRIdata_2_MCI_Normal.hdf5 --validFileName validate_MRIdata_2_MCI_Normal_id.txt --gpu_id 3 --split_dimension_core_G 3 --tt_rank_G 8 --split_dimension_core_C 3 --tt_rank_C 20 --split_dimension_core_D 3 --tt_rank_D 12  --batch_size_label 7 --batch_size_unlabel 7 --block_0_GsoP 0 --block_1_GsoP 0 --GsoP_version 2
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+python GAN_train.py --train --test --hdf5FileNametrain train_MRIdata_2_MCI_Normal.hdf5 --idFileNametrain train_MRIdata_2_MCI_Normal_id.txt --testhdf5FileName test_MRIdata_2_MCI_Normal.hdf5 --testidFileName test_MRIdata_2_MCI_Normal_id.txt  --valhdf5FileName validate_MRIdata_2_MCI_Normal.hdf5 --validFileName validate_MRIdata_2_MCI_Normal_id.txt --gpu_id 0 --split_dimension_core_G 3 --tt_rank_G 8 --split_dimension_core_C 3 --tt_rank_C 20 --split_dimension_core_D 3 --tt_rank_D 12 --batch_size_label 7 --batch_size_unlabel 7 --block_1_GsoP 0 --block_2_GsoP 0
+
+ 
+
+
+python GAN_train.py --train --test --hdf5FileNametrain train_MRIdata_2_MCI_Normal.hdf5 --idFileNametrain train_MRIdata_2_MCI_Normal_id.txt --testhdf5FileName test_MRIdata_2_MCI_Normal.hdf5 --testidFileName test_MRIdata_2_MCI_Normal_id.txt  --valhdf5FileName validate_MRIdata_2_MCI_Normal.hdf5 --validFileName validate_MRIdata_2_MCI_Normal_id.txt --gpu_id 2 --split_dimension_core_G 3 --tt_rank_G 8 --split_dimension_core_C 3 --tt_rank_C 20 --split_dimension_core_D 3 --tt_rank_D 12 --batch_size_label 7 --batch_size_unlabel 7 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+python GAN_train.py --train --test --hdf5FileNametrain train_MRIdata_3_AD_MCI_Normal.hdf5 --idFileNametrain train_MRIdata_3_AD_MCI_Normal_id.txt --testhdf5FileName test_MRIdata_3_AD_MCI_Normal.hdf5 --testidFileName test_MRIdata_3_AD_MCI_Normal_id.txt --valhdf5FileName validate_MRIdata_3_AD_MCI_Normal.hdf5 --validFileName validate_MRIdata_3_AD_MCI_Normal_id.txt   --gpu_id 0 --split_dimension_core_G 3 --tt_rank_G 8 --split_dimension_core_C 3 --tt_rank_C 20 --split_dimension_core_D 3 --tt_rank_D 12 --batch_size_label 7 --batch_size_unlabel 7 --block_1_GsoP 0 --block_2_GsoP 0
+
+
+python GAN_train.py --train --test --hdf5FileNametrain train_MRIdata_3_AD_MCI_Normal.hdf5 --idFileNametrain train_MRIdata_3_AD_MCI_Normal_id.txt --testhdf5FileName test_MRIdata_3_AD_MCI_Normal.hdf5 --testidFileName test_MRIdata_3_AD_MCI_Normal_id.txt --valhdf5FileName validate_MRIdata_3_AD_MCI_Normal.hdf5 --validFileName validate_MRIdata_3_AD_MCI_Normal_id.txt   --gpu_id 1 --split_dimension_core_G 3 --tt_rank_G 8 --split_dimension_core_C 3 --tt_rank_C 20 --split_dimension_core_D 3 --tt_rank_D 12 --batch_size_label 7 --batch_size_unlabel 7  --block_0_GsoP 0 --block_2_GsoP 0
+
+
+python GAN_train.py --train --test --hdf5FileNametrain train_MRIdata_3_AD_MCI_Normal.hdf5 --idFileNametrain train_MRIdata_3_AD_MCI_Normal_id.txt --testhdf5FileName test_MRIdata_3_AD_MCI_Normal.hdf5 --testidFileName test_MRIdata_3_AD_MCI_Normal_id.txt --valhdf5FileName validate_MRIdata_3_AD_MCI_Normal.hdf5 --validFileName validate_MRIdata_3_AD_MCI_Normal_id.txt   --gpu_id 2 --split_dimension_core_G 3 --tt_rank_G 8 --split_dimension_core_C 3 --tt_rank_C 20 --split_dimension_core_D 3 --tt_rank_D 12  --batch_size_label 7 --batch_size_unlabel 7 --block_0_GsoP 0 --block_1_GsoP 0
+
+
+python GAN_train.py --train --test --hdf5FileNametrain train_MRIdata_3_AD_MCI_Normal.hdf5 --idFileNametrain train_MRIdata_3_AD_MCI_Normal_id.txt --testhdf5FileName test_MRIdata_3_AD_MCI_Normal.hdf5 --testidFileName test_MRIdata_3_AD_MCI_Normal_id.txt --valhdf5FileName validate_MRIdata_3_AD_MCI_Normal.hdf5 --validFileName validate_MRIdata_3_AD_MCI_Normal_id.txt   --gpu_id 3 --split_dimension_core_G 3 --tt_rank_G 8 --split_dimension_core_C 3 --tt_rank_C 20 --split_dimension_core_D 3 --tt_rank_D 12 --batch_size_label 7 --batch_size_unlabel 7 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+python GAN_train.py --train --test --hdf5FileNametrain train_MRIdata_2_AD_Normal.hdf5 --idFileNametrain train_MRIdata_2_AD_Normal_id.txt --testhdf5FileName test_MRIdata_2_AD_Normal.hdf5 --testidFileName test_MRIdata_2_AD_Normal_id.txt --valhdf5FileName validate_MRIdata_2_AD_Normal.hdf5 --validFileName validate_MRIdata_2_AD_Normal_id.txt  --gpu_id 0 --split_dimension_core_G 3 --tt_rank_G 8 --split_dimension_core_C 3 --tt_rank_C 20 --split_dimension_core_D 3 --tt_rank_D 12 --batch_size_label 7 --batch_size_unlabel 7 --block_1_GsoP 0 --block_2_GsoP 0
+
+
+python GAN_train.py --train --test --hdf5FileNametrain train_MRIdata_2_AD_Normal.hdf5 --idFileNametrain train_MRIdata_2_AD_Normal_id.txt --testhdf5FileName test_MRIdata_2_AD_Normal.hdf5 --testidFileName test_MRIdata_2_AD_Normal_id.txt --valhdf5FileName validate_MRIdata_2_AD_Normal.hdf5 --validFileName validate_MRIdata_2_AD_Normal_id.txt  --gpu_id 1 --split_dimension_core_G 3 --tt_rank_G 8 --split_dimension_core_C 3 --tt_rank_C 20 --split_dimension_core_D 3 --tt_rank_D 12 --batch_size_label 7 --batch_size_unlabel 7  --block_0_GsoP 0 --block_2_GsoP 0
+
+
+python GAN_train.py --train --test --hdf5FileNametrain train_MRIdata_2_AD_Normal.hdf5 --idFileNametrain train_MRIdata_2_AD_Normal_id.txt --testhdf5FileName test_MRIdata_2_AD_Normal.hdf5 --testidFileName test_MRIdata_2_AD_Normal_id.txt --valhdf5FileName validate_MRIdata_2_AD_Normal.hdf5 --validFileName validate_MRIdata_2_AD_Normal_id.txt  --gpu_id 3 --split_dimension_core_G 3 --tt_rank_G 8 --split_dimension_core_C 3 --tt_rank_C 20 --split_dimension_core_D 3 --tt_rank_D 12  --batch_size_label 7 --batch_size_unlabel 7 --block_0_GsoP 0 --block_1_GsoP 0
+
+
+python GAN_train.py --train --test --hdf5FileNametrain train_MRIdata_2_AD_Normal.hdf5 --idFileNametrain train_MRIdata_2_AD_Normal_id.txt --testhdf5FileName test_MRIdata_2_AD_Normal.hdf5 --testidFileName test_MRIdata_2_AD_Normal_id.txt --valhdf5FileName validate_MRIdata_2_AD_Normal.hdf5 --validFileName validate_MRIdata_2_AD_Normal_id.txt  --gpu_id 2 --split_dimension_core_G 3 --tt_rank_G 8 --split_dimension_core_C 3 --tt_rank_C 20 --split_dimension_core_D 3 --tt_rank_D 12 --batch_size_label 7 --batch_size_unlabel 7 
+
+
+
+
+python GAN_train.py --train --test --hdf5FileNametrain train_MRIdata_2_MCI_Normal.hdf5 --idFileNametrain train_MRIdata_2_MCI_Normal_id.txt --testhdf5FileName test_MRIdata_2_MCI_Normal.hdf5 --testidFileName test_MRIdata_2_MCI_Normal_id.txt  --valhdf5FileName validate_MRIdata_2_MCI_Normal.hdf5 --validFileName validate_MRIdata_2_MCI_Normal_id.txt --gpu_id 0 --split_dimension_core_G 3 --tt_rank_G 8 --split_dimension_core_C 3 --tt_rank_C 20 --split_dimension_core_D 3 --tt_rank_D 12 --batch_size_label 7 --batch_size_unlabel 7 --block_1_GsoP 0 --block_2_GsoP 0
+
+
+python GAN_train.py --train --test --hdf5FileNametrain train_MRIdata_2_MCI_Normal.hdf5 --idFileNametrain train_MRIdata_2_MCI_Normal_id.txt --testhdf5FileName test_MRIdata_2_MCI_Normal.hdf5 --testidFileName test_MRIdata_2_MCI_Normal_id.txt  --valhdf5FileName validate_MRIdata_2_MCI_Normal.hdf5 --validFileName validate_MRIdata_2_MCI_Normal_id.txt --gpu_id 1 --split_dimension_core_G 3 --tt_rank_G 8 --split_dimension_core_C 3 --tt_rank_C 20 --split_dimension_core_D 3 --tt_rank_D 12 --batch_size_label 7 --batch_size_unlabel 7  --block_0_GsoP 0 --block_2_GsoP 0
+
+
+python GAN_train.py --train --test --hdf5FileNametrain train_MRIdata_2_MCI_Normal.hdf5 --idFileNametrain train_MRIdata_2_MCI_Normal_id.txt --testhdf5FileName test_MRIdata_2_MCI_Normal.hdf5 --testidFileName test_MRIdata_2_MCI_Normal_id.txt  --valhdf5FileName validate_MRIdata_2_MCI_Normal.hdf5 --validFileName validate_MRIdata_2_MCI_Normal_id.txt --gpu_id 3 --split_dimension_core_G 3 --tt_rank_G 8 --split_dimension_core_C 3 --tt_rank_C 20 --split_dimension_core_D 3 --tt_rank_D 12  --batch_size_label 7 --batch_size_unlabel 7 --block_0_GsoP 0 --block_1_GsoP 0
+
+
+python GAN_train.py --train --test --hdf5FileNametrain train_MRIdata_2_MCI_Normal.hdf5 --idFileNametrain train_MRIdata_2_MCI_Normal_id.txt --testhdf5FileName test_MRIdata_2_MCI_Normal.hdf5 --testidFileName test_MRIdata_2_MCI_Normal_id.txt  --valhdf5FileName validate_MRIdata_2_MCI_Normal.hdf5 --validFileName validate_MRIdata_2_MCI_Normal_id.txt --gpu_id 2 --split_dimension_core_G 3 --tt_rank_G 8 --split_dimension_core_C 3 --tt_rank_C 20 --split_dimension_core_D 3 --tt_rank_D 12 --batch_size_label 7 --batch_size_unlabel 7 
 
 
 
